@@ -6,7 +6,8 @@
 // [패치 ①] Google Sheets Web App (GAS) 연동 설정 - 영구 저장/삭제용
 // =========================================================================
 // ⚠️ GAS 배포 후 발급받은 Web App URL로 반드시 교체할 것
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyrqnZ6DGMxnj_4QbXffSnT1ANwni2mCiw0mOxf5hmsk4tammjsFa5lIJyV6c2LqDeTJQ/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec";
+
 /**
  * GAS Web App에 POST 요청을 보내는 공용 헬퍼.
  * - Content-Type을 text/plain으로 보내 CORS preflight(OPTIONS) 회피
@@ -321,8 +322,17 @@ function initChecklistToggles() {
 function initSignaturePad() {
   canvas = document.getElementById("signature-canvas");
   ctx = canvas.getContext("2d");
+
+  // [모바일 패치] 캔버스 픽셀 버퍼를 실제 표시 크기 × devicePixelRatio로 동적 설정
+  // — 기본 300x150 픽셀 버퍼와 CSS 100%x150px 불일치로 인한 흐림/좌표 오차 해결
+  resizeSignatureCanvas();
+  window.addEventListener("resize", debounce(resizeSignatureCanvas, 150));
+  // 모바일 키보드 열림/회전 대응: visualViewport 변화도 감지
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", debounce(resizeSignatureCanvas, 150));
+  }
   
-  // 브러시 스타일 설정
+  // 브러시 스타일 설정 (resizeSignatureCanvas 내부에서도 재적용됨)
   ctx.strokeStyle = "#0f172a"; // 짙은 네이비
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
@@ -367,17 +377,55 @@ function initSignaturePad() {
   document.getElementById("btn-save-signature").addEventListener("click", saveSignature);
 }
 
+// [모바일 패치] 캔버스를 실제 표시 크기에 맞춰 픽셀 버퍼와 좌표계 동기화
+function resizeSignatureCanvas() {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;  // 보이지 않는 상태(display:none)면 패스
+  
+  // 기존 그림이 있으면 백업 후 복원
+  let backup = null;
+  if (canvas.width > 0 && canvas.height > 0) {
+    try { backup = canvas.toDataURL(); } catch(_) {}
+  }
+  
+  canvas.width  = Math.round(rect.width  * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);  // 그리기 좌표를 CSS 픽셀 기준으로
+  
+  // 브러시 스타일 재적용 (canvas.width/height 변경 시 ctx 상태 리셋됨)
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  // 백업된 그림 복원
+  if (backup) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    img.src = backup;
+  }
+}
+
+// [모바일 패치] resize 이벤트 과다 호출 방지용 디바운스
+function debounce(fn, delay) {
+  let timer = null;
+  return function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
 // 캔버스 좌표 산출 함수
 function getCoordinates(event) {
   const rect = canvas.getBoundingClientRect();
-  
-  // CSS 변환 스케일 비율 보정 계산
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
 
-  const x = (event.clientX - rect.left) * scaleX;
-  const y = (event.clientY - rect.top) * scaleY;
-  
+  // [모바일 패치] ctx.setTransform(dpr, ...)으로 좌표계가 CSS 픽셀로 정규화돼 있어
+  // 화면 좌표(clientX/Y)에서 rect 오프셋만 빼면 됨 (별도 스케일 보정 불필요)
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
   return [x, y];
 }
 
@@ -391,7 +439,9 @@ function draw(event) {
 }
 
 function clearCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // [모바일 패치] dpr 보정된 좌표계 기준으로 CSS 픽셀 영역 전체 클리어
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
 }
 
 // 서명 저장 및 결과 확인 모달로 연동
@@ -1248,3 +1298,4 @@ function deleteSelectedChecklists() {
     alert(`${selectedIds.length}건의 자율점검표가 영구 삭제되었습니다.`);
   })();
 }
+
