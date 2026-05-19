@@ -572,6 +572,7 @@ body {
 
 .m-btn-green { background: linear-gradient(135deg, var(--color-interest), #0891b2); }
 .m-btn-blue { background: linear-gradient(135deg, var(--color-normal), #2563eb); }
+.m-btn-delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
 
 .m-btn:active {
   transform: scale(0.98);
