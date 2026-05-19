@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KOSHA 폭염 예방 모바일 스마트 앱</title>
+  <!-- Google Fonts: Pretendard -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 전체 레이아웃 (데스크톱에서는 QR 안내창 + 모바일 에뮬레이터 제공) -->
+  <div class="workspace-wrapper">
+    
+    <!-- 1. 좌측 데스크톱 전용: QR 접속 및 안내 판넬 (모바일 기기 접속 시 자동 숨김) -->
+    <section class="desktop-info-panel">
+      <div class="brand-badge"><i class="fa-solid fa-circle-check"></i> KOSHA 100% 준수</div>
+      <h2>폭염 건강장애 예방<br>모바일 스마트 앱</h2>
+      <p class="desc">
+        현장 근로자 및 보건관리자가 현장에서 기온/습도를 입력하고, 모바일 전자 서명 및 자율점검을 수행하는 전용 앱입니다.
+      </p>
+      
+      <!-- QR 코드 영역 -->
+      <div class="qr-container-card">
+        <div class="qr-title"><i class="fa-solid fa-qrcode"></i> 모바일 간편 접속 QR</div>
+        <div class="qr-box" id="qr-code-display">
+          <!-- JS에서 동적으로 고해상도 QR API 이미지 삽입 -->
+        </div>
+        <div class="qr-url" id="live-url-text">http://localhost:8080</div>
+        <p class="qr-tip">스마트폰 카메라로 스캔하면 모바일 화면에서 전자서명 및 실시간 자율점검을 직접 체험하실 수 있습니다.</p>
+      </div>
+
+      <div class="system-status-chip">
+        <span class="status-dot"></span>
+        <span>Google Sheets 데이터베이스 동기화 상태: <b>정상 (Live)</b></span>
+      </div>
+    </section>
+
+    <!-- 2. 중앙/우측: 실제 스마트폰 화면 (Mobile App Shell) -->
+    <main class="mobile-device-shell">
+      <div class="phone-bezel">
+        <!-- 노치 디자인 -->
+        <div class="phone-notch">
+          <div class="camera-hole"></div>
+          <div class="speaker-grill"></div>
+        </div>
+        
+        <!-- 모바일 스크린 내부 -->
+        <div class="phone-screen">
+          
+          <!-- 상단 폰 상태바 -->
+          <div class="screen-statusbar">
+            <span class="status-time" id="phone-time">15:12</span>
+            <div class="status-icons">
+              <i class="fa-solid fa-signal"></i>
+              <i class="fa-solid fa-wifi"></i>
+              <i class="fa-solid fa-battery-three-quarters"></i>
+            </div>
+          </div>
+
+          <!-- 앱 헤더 -->
+          <header class="app-header">
+            <div class="app-logo">
+              <i class="fa-solid fa-temperature-arrow-up"></i>
+              <span>폭염 안전 지킴이</span>
+            </div>
+            <span class="app-version">v1.2.0</span>
+          </header>
+
+          <!-- 앱 콘텐츠 구역 (스크롤 가능) -->
+          <div class="app-body">
+            
+            <!-- ========================================== -->
+            <!-- SCREEN 1: 체감온도 기록 입력 (기본 화면) -->
+            <!-- ========================================== -->
+            <div class="app-screen active" id="screen-record">
+              <div class="screen-intro">
+                <h3>☀️ 실시간 체감온도 기록</h3>
+                <p>1일 2회(오전 10시/오후 2시) 측정치를 기록하고 전자서명을 완료하십시오.</p>
+              </div>
+
+              <!-- 오전/오후 즉시 선택 및 시간 동기화 -->
+              <div class="measurement-slot-selector">
+                <button class="slot-btn active" data-slot="AM" id="btn-slot-am">
+                  <i class="fa-regular fa-sun"></i> 오전 10시 기록
+                </button>
+                <button class="slot-btn" data-slot="PM" id="btn-slot-pm">
+                  <i class="fa-solid fa-cloud-sun"></i> 오후 2시 기록
+                </button>
+              </div>
+
+              <div class="mobile-card">
+                <!-- 입력 양식 -->
+                <div class="form-field">
+                  <label><i class="fa-regular fa-calendar"></i> 기록 날짜</label>
+                  <input type="date" class="m-input" id="m-input-record-date">
+                </div>
+                
+                <div class="form-field">
+                  <label><i class="fa-solid fa-location-dot"></i> 측정 장소</label>
+                  <select class="m-select" id="m-input-location">
+                    <option value="본관 지하2층 기계실">본관 B2 기계실</option>
+                    <option value="시설 관리팀 작업실" selected>시설 관리팀 작업실</option>
+                    <option value="신관 지하1층 기계실">신관 B1 기계실</option>
+                    <option value="폐수처리장">폐수처리장</option>
+                    <option value="본관 10층 영양팀">본관 10층 영양팀</option>
+                    <option value="기타 작업장">기타 작업장 (직접 입력)</option>
+                  </select>
+                  <input type="text" class="m-input" id="m-input-location-other" placeholder="기타 장소를 직접 입력하세요" style="display: none; margin-top: 8px;">
+                </div>
+
+                <!-- 실시간 기온 슬라이더 -->
+                <div class="form-field">
+                  <div class="field-label-row">
+                    <span><i class="fa-solid fa-temperature-high text-red"></i> 현재 기온</span>
+                    <strong class="val-txt text-red">
+                      <input type="number" id="m-val-temp" value="32.0" step="0.1" class="val-txt-input text-red">℃
+                    </strong>
+                  </div>
+                  <input type="range" min="20" max="45" step="0.1" value="32.0" class="m-slider slider-red" id="m-input-temp">
+                  <div class="slider-range"><span>20.0℃</span><span>45.0℃</span></div>
+                </div>
+
+                <!-- 실시간 습도 슬라이더 -->
+                <div class="form-field">
+                  <div class="field-label-row">
+                    <span><i class="fa-solid fa-droplet text-blue"></i> 현재 상대 습도</span>
+                    <strong class="val-txt text-blue">
+                      <input type="number" id="m-val-humidity" value="55" step="1" class="val-txt-input text-blue">%
+                    </strong>
+                  </div>
+                  <input type="range" min="10" max="100" step="1" value="55" class="m-slider slider-blue" id="m-input-humidity">
+                  <div class="slider-range"><span>10%</span><span>100%</span></div>
+                </div>
+              </div>
+
+              <!-- 실시간 KOSHA 결과 프리뷰 (사진 매칭) -->
+              <div class="mobile-card result-preview-card" id="m-preview-box">
+                <div class="res-row">
+                  <span class="lbl">산출 체감온도</span>
+                  <span class="val" id="m-calc-perceived">32.7 ℃</span>
+                </div>
+                <div class="res-row">
+                  <span class="lbl">폭염 구분</span>
+                  <span class="badge badge-interest" id="m-calc-stage">관심</span>
+                </div>
+                
+                <div class="res-action-title"><i class="fa-solid fa-circle-check"></i> KOSHA 의무 관리 조치</div>
+                <div class="res-action-content" id="m-calc-action">
+                  • 온열질환 증상 교육<br>
+                  • 충분한 수분 섭취 권장<br>
+                  • 적절한 휴식
+                </div>
+              </div>
+
+              <div class="form-field" style="padding: 0 5px;">
+                <label><i class="fa-regular fa-comment-dots"></i> 특이사항 및 점검비고</label>
+                <input type="text" class="m-input" id="m-input-remarks" placeholder="현장 특이사항 기술 (생략 가능)">
+              </div>
+
+              <button class="m-btn m-btn-green" id="btn-open-sign-modal">
+                <i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기
+              </button>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- SCREEN 2: 자율점검표 작성 (주 1회) -->
+            <!-- ========================================== -->
+            <div class="app-screen" id="screen-checklist">
+              <div class="screen-intro">
+                <h3>📋 폭염안전 5대 기본수칙 자율점검표</h3>
+                <p>주 1회 폭염 예방 수칙 및 보건관리 상태를 종합 점검하여 기록을 보관합니다.</p>
+              </div>
+
+              <div class="checklist-items-group">
+                
+                <div class="form-field" style="margin-bottom: 15px;">
+                  <label><i class="fa-regular fa-calendar-check"></i> 점검 날짜</label>
+                  <input type="date" class="m-input" id="m-input-checklist-date">
+                </div>
+
+                <!-- 1. 물 -->
+                <div class="checklist-category-header">1. [물] 시원한 물 자주 마시기</div>
+                <div class="chk-item-row" data-key="water-supply">
+                  <div class="chk-item-desc">
+                    <p>• 시원하고 깨끗한 물을 충분히 제공</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+
+                <!-- 2. 바람·그늘 -->
+                <div class="checklist-category-header">2. [바람·그늘] 실내·옥외 작업장 온도 낮추기</div>
+                <div class="chk-item-row" data-key="shade-cooling">
+                  <div class="chk-item-desc">
+                    <p>• 실내·옥외작업 시 (이동식)에어컨, 산업용 선풍기 등 냉방·통풍장치 및 그늘막 설치</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="shade-minimize">
+                  <div class="chk-item-desc">
+                    <p>• 작업시간대 조정 등 폭염 집중 시간대 노출 최소화</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+
+                <!-- 3. 휴식 -->
+                <div class="checklist-category-header">3. [휴식] 주기적으로 쉬기</div>
+                <div class="chk-item-row" data-key="rest-facility">
+                  <div class="chk-item-desc">
+                    <p>• 작업장소와 가까운 곳에 휴게시설(쉼터) 설치, (이동식)에어컨, 산업용 선풍기, 시원한 물 비치</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="rest-31">
+                  <div class="chk-item-desc">
+                    <p>• 체감온도 31도 이상 폭염작업 시 적절한 휴식</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="rest-33">
+                  <div class="chk-item-desc">
+                    <p>• 체감온도 33도 이상 폭염작업 시 2시간 이내 20분 이상 휴식</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+
+                <!-- 4. 보냉장구 -->
+                <div class="checklist-category-header">4. [보냉장구] 근로자 체온 낮추기</div>
+                <div class="chk-item-row" data-key="cooling-gear">
+                  <div class="chk-item-desc">
+                    <p>• 냉각의류, 냉각조끼 등 개인 보냉장구 지급</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+
+                <!-- 5. 응급조치 -->
+                <div class="checklist-category-header">5. [응급조치] 119에 신고하기</div>
+                <div class="chk-item-row" data-key="emergency-unconscious">
+                  <div class="chk-item-desc">
+                    <p>• 온열질환자·의심자가 의식이 없는 경우 즉시 119에 신고</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="emergency-conscious">
+                  <div class="chk-item-desc">
+                    <p>• 의식이 있는 경우 응급조치 후 증상 개선 없을 시 119 신고</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+
+                <!-- 6. 그 외 예방조치 -->
+                <div class="checklist-category-header">6. 그 외 예방조치</div>
+                <div class="chk-item-row" data-key="other-thermometer">
+                  <div class="chk-item-desc">
+                    <p>• 작업장소의 체감온도를 알 수 있는 온습도계 비치</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="other-education">
+                  <div class="chk-item-desc">
+                    <p>• 온열질환 증상 및 예방방법, 응급조치 요령 교육</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="other-record">
+                  <div class="chk-item-desc">
+                    <p>• 체감온도를 측정하고 조치사항 기록·보관</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+                <div class="chk-item-row" data-key="other-sensitive">
+                  <div class="chk-item-desc">
+                    <p>• 온열질환 민감군 관리계획 수립 (신규배치자, 과거 온열질환 경력자, 고령자 등)</p>
+                  </div>
+                  <div class="yn-toggle-group three-way">
+                    <button class="yn-btn active" data-val="적정">적정</button>
+                    <button class="yn-btn" data-val="개선필요">개선필요</button>
+                    <button class="yn-btn" data-val="해당없음">해당없음</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-field" style="margin-top: 15px; padding: 0 5px;">
+                <label><i class="fa-regular fa-comment-dots"></i> 종합 보완조치 사항</label>
+                <input type="text" class="m-input" id="chk-input-remarks" placeholder="보완이 필요한 항목에 대한 대책 입력">
+              </div>
+
+              <button class="m-btn m-btn-blue" id="btn-submit-checklist">
+                <i class="fa-solid fa-file-shield"></i> 주간 자율점검표 제출
+              </button>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- SCREEN 3: 기록 보관소 (종합 이력 및 누락 관리) -->
+            <!-- ========================================== -->
+            <div class="app-screen" id="screen-archive">
+              <div class="screen-intro" style="margin-bottom: 12px;">
+                <h3>🗄️ 기록 보관소</h3>
+                <p>전송된 기록을 날짜별로 보관하고, 누락 상태를 실시간 모니터링합니다.</p>
+              </div>
+
+              <!-- 누락 기록 경고 위젯 (핵심 요구사항) -->
+              <div class="missing-alerts-widget" id="missing-records-box">
+                <div class="widget-header">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>체감기록지 미제출 누락 경보</span>
+                </div>
+                <div class="widget-list" id="missing-list-container">
+                  <!-- 미제출 데이터 자동 기입 -->
+                </div>
+              </div>
+
+              <!-- 보관소 서브 탭 분류 -->
+              <div class="archive-sub-tabs">
+                <button class="sub-tab-btn active" data-sub="sub-temp">체감기록 대장</button>
+                <button class="sub-tab-btn" data-sub="sub-check">자율점검 이력 (날짜클릭)</button>
+              </div>
+
+              <!-- 서브 탭 1: 체감기록 대장 -->
+              <div class="archive-sub-pane active" id="sub-temp">
+                <div class="archive-search-box" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                  <input type="date" class="m-input" id="search-temp-date-start" style="flex: 1;" title="시작일">
+                  <span style="display: flex; align-items: center; color: var(--text-muted);">~</span>
+                  <input type="date" class="m-input" id="search-temp-date-end" style="flex: 1;" title="종료일">
+                  
+                  <select class="m-select" id="search-temp-loc" style="flex: 1 1 100%;">
+                    <option value="전체">전체 장소 조회</option>
+                    <option value="본관 지하2층 기계실">본관 B2 기계실</option>
+                    <option value="시설 관리팀 작업실">시설 관리팀 작업실</option>
+                    <option value="신관 지하1층 기계실">신관 B1 기계실</option>
+                    <option value="폐수처리장">폐수처리장</option>
+                    <option value="본관 10층 영양팀">본관 10층 영양팀</option>
+                    <option value="기타 작업장">기타 작업장</option>
+                  </select>
+                </div>
+                
+                <div class="archive-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <label style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-temp-all" style="width: 16px; height: 16px;"> 전체 선택
+                  </label>
+                  <button class="m-btn m-btn-blue" id="btn-print-selected-temp" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 항목 일괄 출력</button>
+                </div>
+
+                <div class="temp-records-list" id="archive-temp-list">
+                  <!-- 동적 카드 삽입 -->
+                </div>
+              </div>
+
+              <!-- 서브 탭 2: 자율점검표 이력 -->
+              <div class="archive-sub-pane" id="sub-check">
+                <div class="archive-search-box" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <input type="date" class="m-input" id="search-check-date-start" style="flex: 1;" title="시작일">
+                  <span style="display: flex; align-items: center; color: var(--text-muted);">~</span>
+                  <input type="date" class="m-input" id="search-check-date-end" style="flex: 1;" title="종료일">
+                </div>
+                
+                <div class="archive-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <label style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-check-all" style="width: 16px; height: 16px;"> 전체 선택
+                  </label>
+                  <button class="m-btn m-btn-green" id="btn-print-selected-check" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 항목 일괄 출력</button>
+                </div>
+
+                <div class="check-history-list" id="archive-check-list">
+                  <!-- 동적 날짜 리스트 삽입 -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 모바일 네비게이션 하단바 -->
+          <nav class="app-navbar">
+            <button class="nav-item active" data-screen="screen-record">
+              <i class="fa-solid fa-temperature-half"></i>
+              <span>체감기록</span>
+            </button>
+            <button class="nav-item" data-screen="screen-checklist">
+              <i class="fa-solid fa-clipboard-check"></i>
+              <span>자율점검</span>
+            </button>
+            <button class="nav-item" data-screen="screen-archive">
+              <i class="fa-solid fa-box-archive"></i>
+              <span>보관소</span>
+            </button>
+          </nav>
+
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. MODAL 1: 모바일 전자 서명 패드 모달 -->
+  <!-- ========================================== -->
+  <div class="m-modal-overlay" id="sign-pad-modal">
+    <div class="m-modal-card">
+      <div class="m-modal-header">
+        <h4><i class="fa-solid fa-signature"></i> 작성자 디지털 본인 서명</h4>
+        <button class="m-modal-close" id="btn-close-sign"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="m-modal-body">
+        <p class="sign-notice">KOSHA 규정 준수 서명을 패드 영역에 드로잉해 주십시오.</p>
+        
+        <!-- 전자 서명 캔버스 영역 -->
+        <div class="signature-canvas-wrapper">
+          <canvas id="signature-canvas" width="300" height="150"></canvas>
+        </div>
+
+        <div class="canvas-actions-row">
+          <button class="sign-ctrl-btn btn-clear" id="btn-clear-canvas">
+            <i class="fa-solid fa-eraser"></i> 패드 초기화
+          </button>
+          <button class="sign-ctrl-btn btn-confirm" id="btn-save-signature">
+            <i class="fa-solid fa-check"></i> 서명 완료
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 2: 작성 정보 결과 확인 팝업 (서명 이미지 기입) -->
+  <!-- ========================================== -->
+  <div class="m-modal-overlay" id="result-confirm-modal">
+    <div class="m-modal-card">
+      <div class="m-modal-header header-green">
+        <h4><i class="fa-solid fa-square-poll-vertical"></i> 체감온도 산출 및 서명 확인</h4>
+      </div>
+      <div class="m-modal-body">
+        <div class="res-confirm-grid">
+          <div class="res-c-item"><span>측정 장소:</span> <strong id="c-loc">-</strong></div>
+          <div class="res-c-item"><span>실측 기온:</span> <strong id="c-temp">- ℃</strong></div>
+          <div class="res-c-item"><span>실측 습도:</span> <strong id="c-hum">- %</strong></div>
+          <div class="res-c-item"><span>체감온도:</span> <strong id="c-perceived" style="color:var(--color-danger);">- ℃</strong></div>
+          <div class="res-c-item" style="grid-column: span 2;">
+            <span>위험 등급:</span> 
+            <span class="badge" id="c-stage">-</span>
+          </div>
+        </div>
+
+        <div class="c-action-block">
+          <div class="c-action-hdr"><i class="fa-solid fa-bullhorn"></i> KOSHA 현장 보건관리 조치</div>
+          <div class="c-action-txt" id="c-action-text">-</div>
+        </div>
+
+        <!-- 저장된 전자 서명 이미지 로드 -->
+        <div class="signature-image-preview-box">
+          <span class="preview-lbl">기록 전송용 안전보건 서명 확인</span>
+          <div class="sign-img-wrap">
+            <img id="capture-sign-img" src="" alt="서명 이미지">
+          </div>
+        </div>
+
+        <button class="m-btn m-btn-green" id="btn-final-submit">
+          <i class="fa-solid fa-cloud-arrow-up"></i> 구글 시트 전송 & 관리자 경고 메일 발송
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 3: 자율점검표 날짜 클릭 상세 보기 모달 -->
+  <!-- ========================================== -->
+  <div class="m-modal-overlay" id="checklist-viewer-modal">
+    <div class="m-modal-card">
+      <div class="m-modal-header header-blue">
+        <h4><i class="fa-solid fa-clipboard-check"></i> 주간 자율점검표 상세 조회</h4>
+        <button class="m-modal-close" id="btn-close-viewer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="m-modal-body" style="padding: 18px 15px;">
+        <div class="viewer-meta-row" style="justify-content: center;">
+          <div><i class="fa-regular fa-calendar"></i> 점검일자: <strong id="view-date">-</strong></div>
+        </div>
+
+        <div class="viewer-checklist-grid" id="viewer-check-items">
+          <!-- JS로 제출했던 Y/N 데이터 목록 동적 생성 -->
+        </div>
+
+        <div class="viewer-remarks-box">
+          <div class="r-hdr">종합 보완조치 사항</div>
+          <div class="r-txt" id="view-remarks">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAS 통신용 백그라운드 폴더 (보이지 않게 에뮬레이션 유지) -->
+  <div style="display:none;">
+    <div id="gas-console"></div>
+    <div id="mail-badge">0</div>
+    <div id="console-live-msg"></div>
+    <div id="mail-list"></div>
+    <div id="mail-detail-modal"></div>
+    <div id="mail-modal-body"></div>
+  </div>
+
+  <!-- 인쇄(PDF) 렌더링 전용 컨테이너 -->
+  <div id="print-area"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
