@@ -9,6 +9,8 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
   <!-- FontAwesome CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- [PC 대시보드 패치] Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,27 +18,130 @@
   <!-- 전체 레이아웃 (데스크톱에서는 QR 안내창 + 모바일 에뮬레이터 제공) -->
   <div class="workspace-wrapper">
     
-    <!-- 1. 좌측 데스크톱 전용: QR 접속 및 안내 판넬 (모바일 기기 접속 시 자동 숨김) -->
-    <section class="desktop-info-panel">
-      <div class="brand-badge"><i class="fa-solid fa-circle-check"></i> KOSHA 100% 준수</div>
-      <h2>폭염 건강장애 예방<br>모바일 스마트 앱</h2>
-      <p class="desc">
-        현장 근로자 및 보건관리자가 현장에서 기온/습도를 입력하고, 모바일 전자 서명 및 자율점검을 수행하는 전용 앱입니다.
-      </p>
-      
-      <!-- QR 코드 영역 -->
-      <div class="qr-container-card">
-        <div class="qr-title"><i class="fa-solid fa-qrcode"></i> 모바일 간편 접속 QR</div>
-        <div class="qr-box" id="qr-code-display">
-          <!-- JS에서 동적으로 고해상도 QR API 이미지 삽입 -->
+    <!-- 1. [PC 대시보드 패치] 좌측: 통합 관제 대시보드 (모바일 기기 접속 시 자동 숨김) -->
+    <section class="desktop-dashboard" id="desktop-dashboard">
+      <!-- (a) 대시보드 헤더 -->
+      <header class="dash-header">
+        <div class="dash-brand">
+          <i class="fa-solid fa-temperature-high"></i>
+          <div>
+            <div class="dash-brand-title">KOSHA 폭염예방 통합관제</div>
+            <div class="dash-brand-sub">부민병원그룹 · 기획경영팀 · 보건관리실</div>
+          </div>
         </div>
-        <div class="qr-url" id="live-url-text">http://localhost:8080</div>
-        <p class="qr-tip">스마트폰 카메라로 스캔하면 모바일 화면에서 전자서명 및 실시간 자율점검을 직접 체험하실 수 있습니다.</p>
+        <div class="dash-header-meta">
+          <div class="dash-clock" id="dash-clock">--:--</div>
+          <div class="dash-date" id="dash-date">----년 --월 --일</div>
+          <div class="dash-sync-chip" id="dash-sync-chip">
+            <span class="sync-dot"></span>
+            <span id="dash-sync-text">Google Sheets 동기화 확인 중…</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- (b) KPI 4개 -->
+      <div class="dash-kpi-grid">
+        <div class="dash-kpi card-normal">
+          <div class="kpi-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-label">오늘 측정</div>
+            <div class="kpi-value" id="kpi-today-count">0</div>
+            <div class="kpi-sub">건 (오전+오후)</div>
+          </div>
+        </div>
+        <div class="dash-kpi card-attention">
+          <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-label">주의 이상</div>
+            <div class="kpi-value" id="kpi-attention-count">0</div>
+            <div class="kpi-sub">건 (이번 주)</div>
+          </div>
+        </div>
+        <div class="dash-kpi card-warning">
+          <div class="kpi-icon"><i class="fa-solid fa-fire"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-label">경고/위험</div>
+            <div class="kpi-value" id="kpi-warning-count">0</div>
+            <div class="kpi-sub">건 (이번 주)</div>
+          </div>
+        </div>
+        <div class="dash-kpi card-danger">
+          <div class="kpi-icon"><i class="fa-solid fa-bell"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-label">미제출 경보</div>
+            <div class="kpi-value" id="kpi-missing-count">0</div>
+            <div class="kpi-sub">슬롯 (최근 7일)</div>
+          </div>
+        </div>
       </div>
 
-      <div class="system-status-chip">
-        <span class="status-dot"></span>
-        <span>Google Sheets 데이터베이스 동기화 상태: <b>정상 (Live)</b></span>
+      <!-- (c) 24시간 체감온도 라인차트 -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h4><i class="fa-solid fa-chart-line"></i> 최근 7일 체감온도 추이</h4>
+          <span class="dash-card-tag" id="chart-line-period">--</span>
+        </div>
+        <div class="dash-chart-box">
+          <canvas id="chart-line-perceived"></canvas>
+        </div>
+      </div>
+
+      <!-- (d) 하단 그리드: 좌(테이블) / 우(도넛) -->
+      <div class="dash-bottom-grid">
+        <!-- 최근 측정 5건 테이블 -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h4><i class="fa-solid fa-list-ul"></i> 최근 측정 5건</h4>
+            <span class="dash-card-tag" id="table-recent-count">0건</span>
+          </div>
+          <div class="dash-table-box">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>일시</th>
+                  <th>측정장소</th>
+                  <th>체감</th>
+                  <th>단계</th>
+                </tr>
+              </thead>
+              <tbody id="dash-recent-tbody">
+                <tr><td colspan="4" class="dash-empty">데이터 불러오는 중…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 단계별 분포 도넛 -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h4><i class="fa-solid fa-chart-pie"></i> 폭염 단계 분포</h4>
+            <span class="dash-card-tag">이번 주</span>
+          </div>
+          <div class="dash-chart-box donut">
+            <canvas id="chart-donut-stage"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- (e) QR 카드 + 시스템 상태 (기존 자산 보존) -->
+      <div class="dash-bottom-grid">
+        <div class="qr-container-card dash-card">
+          <div class="qr-title"><i class="fa-solid fa-qrcode"></i> 모바일 간편 접속</div>
+          <div class="qr-box" id="qr-code-display">
+            <!-- JS에서 동적으로 고해상도 QR API 이미지 삽입 -->
+          </div>
+          <div class="qr-url" id="live-url-text">http://localhost:8080</div>
+        </div>
+
+        <div class="dash-card dash-missing-card">
+          <div class="dash-card-header">
+            <h4><i class="fa-solid fa-bell"></i> 미제출 누락 경보</h4>
+            <span class="dash-card-tag" id="missing-card-count">0건</span>
+          </div>
+          <div class="dash-missing-list" id="dash-missing-list">
+            <div class="dash-empty">최근 7일 미제출 슬롯 확인 중…</div>
+          </div>
+        </div>
       </div>
     </section>
 
