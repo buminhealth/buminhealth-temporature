@@ -2,6 +2,30 @@
 // KOSHA 폭염 예방 모바일 스마트 앱 - 프론트엔드 비즈니스 로직 (app.js)
 // =========================================================================
 
+// =========================================================================
+// [패치 ①] Google Sheets Web App (GAS) 연동 설정 - 영구 저장/삭제용
+// =========================================================================
+// ⚠️ GAS 배포 후 발급받은 Web App URL로 반드시 교체할 것
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyrqnZ6DGMxnj_4QbXffSnT1ANwni2mCiw0mOxf5hmsk4tammjsFa5lIJyV6c2LqDeTJQ/exec";
+/**
+ * GAS Web App에 POST 요청을 보내는 공용 헬퍼.
+ * - Content-Type을 text/plain으로 보내 CORS preflight(OPTIONS) 회피
+ * - GAS 측에서 e.postData.contents를 JSON.parse하여 받음
+ */
+async function gasCall(payload) {
+  if (!GAS_API_URL || GAS_API_URL.includes("REPLACE_WITH_YOUR_DEPLOYMENT_ID")) {
+    throw new Error("GAS_API_URL이 아직 설정되지 않았습니다. app.js 최상단의 상수를 교체하세요.");
+  }
+  const res = await fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload),
+    redirect: "follow"
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
 // 1. KOSHA 표준 권고 관리조치 규격 정의
 const koshaActions = {
   "정상": "• 기본 수칙 준수 (물, 그늘, 휴식)",
@@ -14,70 +38,9 @@ const koshaActions = {
 // 모의 서명용 더미 DataURL (투명 배경의 빈 서명 대체)
 const dummySignature = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40'><text x='10' y='25' font-family='sans-serif' font-size='12' fill='gray'>보건서명 완료</text></svg>";
 
-// 2. 초기 데이터베이스 (체감온도 및 자율점검)
-let tempDb = [
-  { id: "TMP-104", date: "2026-05-18", slot: "AM", time: "10:00", inspector: "보건관리자", location: "본관 지하2층 기계실", temp: 29.5, humidity: 60, perceived: 30.9, stage: "정상", action: koshaActions["정상"], signature: dummySignature, remarks: "오전 1차 측정 양호" },
-  { id: "TMP-103", date: "2026-05-17", slot: "PM", time: "14:02", inspector: "보건관리자", location: "시설 관리팀 작업실", temp: 33.0, humidity: 55, perceived: 33.7, stage: "주의", action: koshaActions["주의"], signature: dummySignature, remarks: "충분한 수분 공급 확인" },
-  { id: "TMP-102", date: "2026-05-17", slot: "AM", time: "09:58", inspector: "보건관리자", location: "신관 지하1층 기계실", temp: 30.5, humidity: 50, perceived: 30.5, stage: "정상", action: koshaActions["정상"], signature: dummySignature, remarks: "양호" },
-  { id: "TMP-101", date: "2026-05-16", slot: "PM", time: "14:15", inspector: "안전팀장", location: "폐수처리장", temp: 34.0, humidity: 65, perceived: 36.1, stage: "경고", action: koshaActions["경고"], signature: dummySignature, remarks: "무더위 시간대 옥외 단축 작업 권고" }
-];
-
-let checklistDb = [
-  {
-    id: "CHK-103",
-    date: "2026-05-18",
-    water_supply: "적정",
-    shade_cooling: "적정",
-    shade_minimize: "적정",
-    rest_facility: "적정",
-    rest_31: "적정",
-    rest_33: "적정",
-    cooling_gear: "적정",
-    emergency_unconscious: "적정",
-    emergency_conscious: "적정",
-    other_thermometer: "적정",
-    other_education: "적정",
-    other_record: "적정",
-    other_sensitive: "적정",
-    remarks: "폭염안전 5대 수칙 및 보건관리 상태가 모두 양호하며, 온열질환 예방 수칙을 준수하고 있습니다."
-  },
-  {
-    id: "CHK-102",
-    date: "2026-05-11",
-    water_supply: "적정",
-    shade_cooling: "적정",
-    shade_minimize: "적정",
-    rest_facility: "적정",
-    rest_31: "적정",
-    rest_33: "개선필요",
-    cooling_gear: "적정",
-    emergency_unconscious: "적정",
-    emergency_conscious: "적정",
-    other_thermometer: "적정",
-    other_education: "적정",
-    other_record: "적정",
-    other_sensitive: "해당없음",
-    remarks: "오후 폭염 집중 시간대 2시간 이내 20분 이상 휴식 제공 실태 불시 점검 및 현장 지도 예정."
-  },
-  {
-    id: "CHK-101",
-    date: "2026-05-04",
-    water_supply: "적정",
-    shade_cooling: "개선필요",
-    shade_minimize: "적정",
-    rest_facility: "적정",
-    rest_31: "적정",
-    rest_33: "적정",
-    cooling_gear: "적정",
-    emergency_unconscious: "적정",
-    emergency_conscious: "적정",
-    other_thermometer: "해당없음",
-    other_education: "적정",
-    other_record: "적정",
-    other_sensitive: "적정",
-    remarks: "야외 그늘막 추가 배치 요청 및 작업장 냉방·통풍장치 가동 보완 조치 확인 필요."
-  }
-];
+// 2. 데이터베이스 (Google Sheets에서 비동기 로드 — DOMContentLoaded 시점에 loadFromSheets()로 채워짐)
+let tempDb = [];
+let checklistDb = [];
 
 // 이메일 수신 데이터베이스
 let emailDb = [];
@@ -116,8 +79,11 @@ document.addEventListener("DOMContentLoaded", () => {
   initChecklistToggles();
   initSignaturePad();
   
-  // 데이터 렌더링
-  renderArchive();
+  // 데이터 렌더링 — [패치 ③] Google Sheets에서 비동기 로드
+  loadFromSheets().then(() => {
+    renderArchive();
+    updateMissingRecordsWidget();
+  });
   updateMissingRecordsWidget();
 
   // 이벤트 트리거 바인딩
@@ -517,7 +483,19 @@ function submitRecordFinal() {
   submitBtn.disabled = true;
   submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sheets 데이터 적재 중...`;
 
-  setTimeout(() => {
+  setTimeout(async () => {
+    // [패치 ④-A] Google Sheets 영구 저장
+    try {
+      const res = await gasCall({ action: "create", target: "temp", record: record });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+      if (res.id) record.id = res.id;  // 서버가 발급한 ID로 갱신
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> 구글 시트 전송 & 관리자 경고 메일 발송`;
+      alert("⚠️ 구글 시트 저장 실패\n" + err.message + "\n\n네트워크나 GAS Web App URL을 확인해주세요.");
+      return;
+    }
+
     tempDb.unshift(record);
     
     // 모달 닫기 및 폼 초기화
@@ -596,7 +574,19 @@ function submitChecklist() {
   submitBtn.disabled = true;
   submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 자율점검 DB 등록 중...`;
 
-  setTimeout(() => {
+  setTimeout(async () => {
+    // [패치 ④-B] Google Sheets 영구 저장
+    try {
+      const res = await gasCall({ action: "create", target: "checklist", record: record });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+      if (res.id) record.id = res.id;
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<i class="fa-solid fa-file-shield"></i> 주간 자율점검표 제출`;
+      alert("⚠️ 구글 시트 저장 실패\n" + err.message + "\n\n네트워크나 GAS Web App URL을 확인해주세요.");
+      return;
+    }
+
     checklistDb.unshift(record);
     submitBtn.disabled = false;
     submitBtn.innerHTML = `<i class="fa-solid fa-file-shield"></i> 주간 자율점검표 제출`;
@@ -697,6 +687,88 @@ function updateMissingRecordsWidget() {
     widget.style.display = "block";
     widget.querySelector("span").innerText = `미제출 누락 기록지 ${missingSlotsCount}건 보관 중!`;
   }
+}
+
+// =========================================================================
+// [패치 ③] Google Sheets에서 데이터 로드 (페이지 진입 시 1회)
+// =========================================================================
+async function loadFromSheets() {
+  try {
+    const [tempRes, chkRes] = await Promise.all([
+      gasCall({ action: "list", target: "temp" }),
+      gasCall({ action: "list", target: "checklist" })
+    ]);
+
+    if (tempRes && tempRes.ok && Array.isArray(tempRes.records)) {
+      tempDb = tempRes.records
+        .filter(r => r["ID"])
+        .map(r => ({
+          id: String(r["ID"]),
+          date: _formatDateOnly(r["기록일시"]),
+          slot: r["시간슬롯"] || "AM",
+          time: _formatTimeOnly(r["기록일시"]),
+          inspector: r["측정자"] || "보건관리자",
+          location: r["측정 장소"] || "",
+          temp: parseFloat(r["기온"]) || 0,
+          humidity: parseFloat(r["습도"]) || 0,
+          perceived: parseFloat(r["체감온도"]) || 0,
+          stage: r["폭염 단계"] || "정상",
+          action: koshaActions[r["폭염 단계"]] || koshaActions["정상"],
+          signature: r["서명"] || dummySignature,
+          remarks: r["특이사항"] || ""
+        }))
+        .sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot));
+    }
+
+    if (chkRes && chkRes.ok && Array.isArray(chkRes.records)) {
+      checklistDb = chkRes.records
+        .filter(r => r["ID"])
+        .map(r => ({
+          id: String(r["ID"]),
+          date: _formatDateOnly(r["점검일시"]),
+          water_supply: r["물_식수제공"] || "적정",
+          shade_cooling: r["그늘_냉방그늘막"] || "적정",
+          shade_minimize: r["그늘_노출최소화"] || "적정",
+          rest_facility: r["휴식_휴게시설"] || "적정",
+          rest_31: r["휴식_31도휴식"] || "적정",
+          rest_33: r["휴식_33도휴식"] || "적정",
+          cooling_gear: r["보냉장구_개인지급"] || "적정",
+          emergency_unconscious: r["응급조치_무의식신고"] || "적정",
+          emergency_conscious: r["응급조치_의식응급조치"] || "적정",
+          other_thermometer: r["그외_온습도계"] || "적정",
+          other_education: r["그외_안전교육"] || "적정",
+          other_record: r["그외_기록보관"] || "적정",
+          other_sensitive: r["그외_민감군계획"] || "적정",
+          remarks: r["특이사항"] || ""
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+  } catch (err) {
+    console.error("[Sheets 로드 실패]", err);
+    alert("⚠️ Google Sheets 데이터 로드 실패\n" + err.message + "\n\n임시로 빈 상태에서 동작합니다. 새 기록 저장도 실패할 수 있습니다.");
+  }
+}
+
+function _formatDateOnly(val) {
+  if (!val) return "";
+  const s = String(val);
+  // 이미 YYYY-MM-DD 형식이면 그대로
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return s.substring(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function _formatTimeOnly(val) {
+  if (!val) return "00:00";
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return "00:00";
+  const h = String(d.getHours()).padStart(2, '0');
+  const mn = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${mn}`;
 }
 
 // 보관소 리스트 렌더링
@@ -1118,17 +1190,31 @@ function deleteSelectedTempRecords() {
     return;
   }
 
-  if (!confirm(`선택한 체감기록 ${selectedIds.length}건을 삭제하시겠습니까?\n삭제 후 복구가 불가능합니다.`)) {
+  if (!confirm(`선택한 체감기록 ${selectedIds.length}건을 영구 삭제하시겠습니까?\n구글 시트에서도 함께 삭제되며 복구가 불가능합니다.`)) {
     return;
   }
 
-  tempDb = tempDb.filter(r => !selectedIds.includes(r.date + "_" + r.slot));
+  // [패치 ⑤-A] 화면 ID(date_slot) → 시트 ID(TMP-xxx) 매핑 후 Sheets 영구 삭제
+  const recordsToDelete = tempDb.filter(r => selectedIds.includes(r.date + "_" + r.slot));
+  const sheetIds = recordsToDelete.map(r => r.id).filter(Boolean);
 
-  document.getElementById("chk-temp-all").checked = false;
-  renderArchive();
-  updateMissingRecordsWidget();
+  (async () => {
+    try {
+      const res = await gasCall({ action: "delete", target: "temp", ids: sheetIds });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+    } catch (err) {
+      alert("⚠️ 구글 시트 삭제 실패\n" + err.message + "\n\n로컬 화면 갱신을 중단합니다.");
+      return;
+    }
 
-  alert(`${selectedIds.length}건의 체감기록이 삭제되었습니다.`);
+    tempDb = tempDb.filter(r => !selectedIds.includes(r.date + "_" + r.slot));
+
+    document.getElementById("chk-temp-all").checked = false;
+    renderArchive();
+    updateMissingRecordsWidget();
+
+    alert(`${selectedIds.length}건의 체감기록이 영구 삭제되었습니다.`);
+  })();
 }
 
 function deleteSelectedChecklists() {
@@ -1140,14 +1226,25 @@ function deleteSelectedChecklists() {
     return;
   }
 
-  if (!confirm(`선택한 자율점검표 ${selectedIds.length}건을 삭제하시겠습니까?\n삭제 후 복구가 불가능합니다.`)) {
+  if (!confirm(`선택한 자율점검표 ${selectedIds.length}건을 영구 삭제하시겠습니까?\n구글 시트에서도 함께 삭제되며 복구가 불가능합니다.`)) {
     return;
   }
 
-  checklistDb = checklistDb.filter(r => !selectedIds.includes(r.id.toString()));
+  // [패치 ⑤-B] Sheets 영구 삭제
+  (async () => {
+    try {
+      const res = await gasCall({ action: "delete", target: "checklist", ids: selectedIds });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+    } catch (err) {
+      alert("⚠️ 구글 시트 삭제 실패\n" + err.message + "\n\n로컬 화면 갱신을 중단합니다.");
+      return;
+    }
 
-  document.getElementById("chk-check-all").checked = false;
-  renderArchive();
+    checklistDb = checklistDb.filter(r => !selectedIds.includes(r.id.toString()));
 
-  alert(`${selectedIds.length}건의 자율점검표가 삭제되었습니다.`);
+    document.getElementById("chk-check-all").checked = false;
+    renderArchive();
+
+    alert(`${selectedIds.length}건의 자율점검표가 영구 삭제되었습니다.`);
+  })();
 }
