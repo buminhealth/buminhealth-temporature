@@ -392,7 +392,10 @@
                   <label style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
                     <input type="checkbox" id="chk-temp-all" style="width: 16px; height: 16px;"> 전체 선택
                   </label>
-                  <button class="m-btn m-btn-blue" id="btn-print-selected-temp" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 항목 일괄 출력</button>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="m-btn m-btn-blue" id="btn-print-selected-temp" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 출력</button>
+                    <button class="m-btn m-btn-delete" id="btn-delete-selected-temp" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
+                  </div>
                 </div>
 
                 <div class="temp-records-list" id="archive-temp-list">
@@ -412,7 +415,10 @@
                   <label style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
                     <input type="checkbox" id="chk-check-all" style="width: 16px; height: 16px;"> 전체 선택
                   </label>
-                  <button class="m-btn m-btn-green" id="btn-print-selected-check" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 항목 일괄 출력</button>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="m-btn m-btn-green" id="btn-print-selected-check" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 출력</button>
+                    <button class="m-btn m-btn-delete" id="btn-delete-selected-check" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
+                  </div>
                 </div>
 
                 <div class="check-history-list" id="archive-check-list">
