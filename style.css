@@ -33,7 +33,7 @@ body {
   font-family: var(--font-family);
   background-color: var(--bg-workspace);
   color: var(--text-primary);
-  min-height: 100vh;
+  min-height: 100dvh;  /* [모바일 패치] vh→dvh: 주소창 변동에 대응 */
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -52,7 +52,7 @@ body {
   width: 100%;
   max-width: 1100px;
   padding: 20px;
-  height: 95vh;
+  height: 95dvh;  /* [모바일 패치] vh→dvh */
 }
 
 /* 1. 좌측 데스크톱 안내 판넬 */
@@ -326,11 +326,13 @@ body {
 .app-body {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;  /* [모바일 패치] iOS 관성 스크롤 */
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  padding-bottom: 25px;
+  /* [모바일 패치] 하단 네비바(60px) + iOS 홈 인디케이터(safe-area) + 여유분 */
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* 웹 스크롤바 숨기기 */
@@ -904,7 +906,7 @@ body {
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;  /* [모바일 패치] vh→dvh */
   background: rgba(0,0,0,0.4);
   backdrop-filter: blur(5px);
   z-index: 2000;
@@ -923,7 +925,7 @@ body {
   border-radius: 24px 24px 0 0;
   width: 100%;
   max-width: 385px; /* 에뮬레이터 너비와 정확히 정렬 */
-  max-height: 85vh;
+  max-height: 85dvh;  /* [모바일 패치] vh→dvh */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -984,6 +986,7 @@ body {
   align-items: center;
   border: 2px solid var(--border-color);
   overflow: hidden;
+  width: 100%;  /* [모바일 패치] 가로 폭 명시 */
 }
 
 #signature-canvas {
@@ -992,6 +995,7 @@ body {
   background: white;
   cursor: crosshair;
   touch-action: none; /* 모바일 브라우저 기본 스크롤 방지 */
+  display: block;  /* [모바일 패치] inline 기본값으로 인한 하단 여백 제거 */
 }
 
 .canvas-actions-row {
@@ -1159,6 +1163,12 @@ body {
    3. RESPONSIVE DESIGN (모바일 기기 실접속 처리)
    ========================================================================= */
 @media (max-width: 768px) {
+  /* [모바일 패치] body의 overflow: hidden을 해제 - 작은 폰에서 body 스크롤 보조 허용 */
+  body {
+    overflow: auto;
+    align-items: flex-start;
+  }
+
   /* 실제 모바일 접속 시, 데스크톱 안내 텍스트 판넬은 완전 페이드아웃 */
   .desktop-info-panel {
     display: none;
@@ -1168,17 +1178,17 @@ body {
   .workspace-wrapper {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     padding: 0;
     margin: 0;
-    height: 100vh;
+    height: 100dvh;  /* [모바일 패치] vh→dvh */
     max-width: 100vw;
   }
 
   /* 스마트폰 목업 장식을 해제하여 순수 풀스크린 웹앱으로 전환! */
   .phone-bezel {
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;  /* [모바일 패치] vh→dvh: 주소창 변동 대응 */
     border: none;
     border-radius: 0;
     box-shadow: none;
@@ -1194,6 +1204,46 @@ body {
 
   .m-modal-card {
     max-width: 100vw;
+  }
+
+  /* [모바일 패치] 사인패드 반응형 - 작은 폰에선 110px, 큰 폰에선 자동 키움 */
+  #signature-canvas {
+    height: clamp(110px, 18vh, 170px);
+  }
+
+  /* [모바일 패치] 모달 내부 스크롤 보장 — 작은 화면에서 결과확인/검색 모달이 잘리지 않도록 */
+  .m-modal-card {
+    max-height: 90dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* [모바일 패치] 하단 네비바를 항상 화면 하단에 고정시켜 사라지지 않게 */
+  .app-navbar {
+    position: sticky;
+    bottom: 0;
+    flex-shrink: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* [모바일 패치] 보관소 서브탭(체감기록/자율점검 클릭창)이 가려지지 않도록 sticky 처리 */
+  .archive-sub-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-mobile);
+  }
+}
+
+/* [모바일 패치] 매우 작은 폰(아이폰 SE 등, 너비 360px 이하) 대응 */
+@media (max-width: 360px) {
+  .app-body {
+    padding: 12px;
+    padding-bottom: calc(75px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+  #signature-canvas {
+    height: 100px;
   }
 }
 
