@@ -3,20 +3,20 @@
    ========================================================================= */
 
 :root {
-  /* 프리미엄 다크 글래스 테마 컬러 */
-  --bg-workspace: #080c14;
-  --bg-mobile: #0f172a;
+  /* 라이트 클린 테마 컬러 */
+  --bg-workspace: #e8f0fe;
+  --bg-mobile: #ffffff;
   
-  --border-color: rgba(255, 255, 255, 0.08);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   
-  --color-normal: #3b82f6;    /* 정상 (블루) */
-  --color-interest: #06b6d4;  /* 관심 (하늘색) */
-  --color-attention: #eab308; /* 주의 (노랑) */
-  --color-warning: #f97316;   /* 경고 (주황) */
-  --color-danger: #ef4444;    /* 위험 (빨강) */
+  --color-normal: #2563eb;    /* 정상 (블루) */
+  --color-interest: #0891b2;  /* 관심 (하늘색) */
+  --color-attention: #ca8a04; /* 주의 (노랑) */
+  --color-warning: #ea580c;   /* 경고 (주황) */
+  --color-danger: #dc2626;    /* 위험 (빨강) */
   
   --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --transition-speed: 0.25s;
@@ -80,7 +80,7 @@ body {
   font-weight: 800;
   letter-spacing: -1px;
   line-height: 1.25;
-  background: linear-gradient(135deg, #ffffff 40%, var(--color-interest));
+  background: linear-gradient(135deg, #1e293b 40%, var(--color-interest));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -93,13 +93,13 @@ body {
 
 /* QR 카드 */
 .qr-container-card {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 20px;
   text-align: center;
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
 .qr-title {
@@ -137,7 +137,7 @@ body {
   font-size: 12px;
   font-family: monospace;
   color: var(--color-interest);
-  background: rgba(0,0,0,0.3);
+  background: rgba(8, 145, 178, 0.08);
   padding: 6px 12px;
   border-radius: 6px;
   display: inline-block;
@@ -157,7 +157,7 @@ body {
   gap: 8px;
   font-size: 11px;
   color: var(--text-secondary);
-  background: rgba(255,255,255,0.02);
+  background: rgba(255,255,255,0.7);
   padding: 8px 14px;
   border-radius: 10px;
 }
@@ -183,10 +183,10 @@ body {
 .phone-bezel {
   width: 385px;
   height: 780px;
-  background: #1e293b;
-  border: 11px solid #334155;
+  background: #e2e8f0;
+  border: 11px solid #cbd5e1;
   border-radius: 40px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255,255,255,0.05);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(0,0,0,0.05);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -201,7 +201,7 @@ body {
   transform: translateX(-50%);
   width: 140px;
   height: 25px;
-  background: #334155;
+  background: #cbd5e1;
   border-radius: 0 0 15px 15px;
   z-index: 1000;
   display: flex;
@@ -213,14 +213,14 @@ body {
 .camera-hole {
   width: 8px;
   height: 8px;
-  background: #0f172a;
+  background: #94a3b8;
   border-radius: 50%;
 }
 
 .speaker-grill {
   width: 40px;
   height: 3px;
-  background: #1e293b;
+  background: #e2e8f0;
   border-radius: 10px;
 }
 
@@ -262,7 +262,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
 }
 
@@ -282,7 +282,7 @@ body {
 .app-version {
   font-size: 10px;
   color: var(--text-secondary);
-  background: rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.05);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -290,7 +290,7 @@ body {
 .app-navbar {
   height: 60px;
   border-top: 1px solid var(--border-color);
-  background: #090d16;
+  background: #ffffff;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: center;
@@ -307,13 +307,13 @@ body {
   gap: 4px;
   cursor: pointer;
   font-family: var(--font-family);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   transition: color 0.2s ease;
 }
 
 .nav-item i {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .nav-item.active {
@@ -355,13 +355,13 @@ body {
 }
 
 .screen-intro h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
 .screen-intro p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.4;
   margin-top: 2px;
@@ -369,7 +369,7 @@ body {
 
 /* 모바일 전용 디자인 카드 */
 .mobile-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: #f8fafc;
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 14px;
@@ -384,7 +384,7 @@ body {
 .measurement-slot-selector {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: rgba(0,0,0,0.3);
+  background: #e2e8f0;
   border-radius: 8px;
   padding: 2px;
   gap: 2px;
@@ -397,7 +397,7 @@ body {
   border-radius: 6px;
   padding: 9px;
   font-family: var(--font-family);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
   color: var(--text-secondary);
   cursor: pointer;
@@ -409,8 +409,9 @@ body {
 }
 
 .slot-btn.active {
-  background: #1e293b;
+  background: #ffffff;
   color: var(--color-interest);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .form-field {
@@ -420,48 +421,49 @@ body {
 }
 
 .form-field label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--text-secondary);
 }
 
 .m-select, .m-input {
-  background: #090d16;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
   color: var(--text-primary);
   padding: 10px;
   font-family: var(--font-family);
-  font-size: 12px;
+  font-size: 14px;
   outline: none;
 }
 
 .m-select:focus, .m-input:focus {
   border-color: var(--color-interest);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
 }
 
 /* Sliders */
 .field-label-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
 }
 
 .val-txt {
-  font-size: 12px;
+  font-size: 14px;
   font-family: monospace;
 }
 
 .val-txt-input {
   background: transparent;
   border: none;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.4);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.3);
   color: inherit;
   font-family: monospace;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
-  width: 30px;
+  width: 34px;
   text-align: center;
   box-sizing: border-box;
   outline: none;
@@ -483,7 +485,7 @@ body {
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: #1e293b;
+  background: #e2e8f0;
   outline: none;
 }
 
@@ -501,7 +503,7 @@ body {
 .slider-range {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -509,8 +511,8 @@ body {
    REALTIME PREVIEW (산출값 실시간 요약)
    ========================================================================= */
 .result-preview-card {
-  background: rgba(6, 182, 212, 0.03);
-  border: 1px solid rgba(6, 182, 212, 0.15);
+  background: rgba(8, 145, 178, 0.04);
+  border: 1px solid rgba(8, 145, 178, 0.2);
   gap: 8px;
 }
 
@@ -518,7 +520,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .res-row .lbl {
@@ -533,16 +535,16 @@ body {
 }
 
 .res-action-title {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-secondary);
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(0,0,0,0.07);
   padding-top: 6px;
   margin-top: 4px;
 }
 
 .res-action-content {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
   font-weight: 700;
   color: var(--text-primary);
@@ -556,7 +558,7 @@ body {
   border-radius: 8px;
   padding: 12px;
   font-family: var(--font-family);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   color: white;
   cursor: pointer;
@@ -592,7 +594,7 @@ body {
 }
 
 .chk-item-row {
-  background: rgba(255,255,255,0.01);
+  background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px;
@@ -608,19 +610,19 @@ body {
 }
 
 .chk-item-desc h5 {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
 }
 
 .chk-item-desc p {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .yn-toggle-group {
   display: flex;
-  background: #090d16;
+  background: #e2e8f0;
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
@@ -633,7 +635,7 @@ body {
   height: 24px;
   border-radius: 4px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   cursor: pointer;
   display: flex;
@@ -642,8 +644,9 @@ body {
 }
 
 .yn-btn.active {
-  background: #334155;
-  color: white;
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* 3-Way 토글 그룹 스타일화 */
@@ -654,8 +657,8 @@ body {
 
 .yn-toggle-group.three-way .yn-btn {
   width: auto;
-  padding: 4px 6px;
-  font-size: 9px;
+  padding: 4px 7px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -676,34 +679,34 @@ body {
 
 /* 자율점검 카테고리 헤더 */
 .checklist-category-header {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--color-interest);
   margin-top: 14px;
   margin-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   padding-bottom: 4px;
   padding-left: 2px;
 }
 
 /* 개선 필요 항목이 체크되었을 때 주황색 피드백 보드 하이라이팅 */
 .chk-item-row.failure-highlight {
-  background: rgba(249, 115, 22, 0.04);
-  border-color: rgba(249, 115, 22, 0.2);
+  background: rgba(234, 88, 12, 0.05);
+  border-color: rgba(234, 88, 12, 0.25);
 }
 
 /* =========================================================================
    SCREEN 3: 기록 보관소 및 누락 관리 위젯
    ========================================================================= */
 .missing-alerts-widget {
-  background: rgba(239, 68, 68, 0.03);
-  border: 1px dashed rgba(239, 68, 68, 0.25);
+  background: rgba(220, 38, 38, 0.04);
+  border: 1px dashed rgba(220, 38, 38, 0.3);
   border-radius: 12px;
   padding: 10px;
 }
 
 .widget-header {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--color-danger);
   display: flex;
@@ -719,14 +722,14 @@ body {
 }
 
 .missing-row-card {
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.1);
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.12);
   border-radius: 6px;
   padding: 6px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: bold;
 }
 
@@ -745,7 +748,7 @@ body {
 .archive-sub-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: rgba(0,0,0,0.25);
+  background: #e2e8f0;
   border-radius: 8px;
   padding: 2px;
 }
@@ -756,15 +759,16 @@ body {
   border-radius: 6px;
   padding: 8px;
   font-family: var(--font-family);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 .sub-tab-btn.active {
-  background: #1e293b;
+  background: #ffffff;
   color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .archive-sub-pane {
@@ -787,7 +791,7 @@ body {
 }
 
 .temp-record-item-card {
-  background: rgba(255,255,255,0.01);
+  background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px;
@@ -799,7 +803,7 @@ body {
 .t-rec-top {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--text-secondary);
 }
@@ -816,7 +820,7 @@ body {
 }
 
 .t-rec-body .tr-vals {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -829,7 +833,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid rgba(255,255,255,0.03);
+  border-top: 1px solid rgba(0,0,0,0.05);
   padding-top: 6px;
   margin-top: 4px;
 }
@@ -849,12 +853,12 @@ body {
   border-radius: 2px;
   object-fit: contain;
   padding: 1px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(0,0,0,0.1);
 }
 
 /* 자율점검 날짜 리스트 행 카드 */
 .check-history-row {
-  background: rgba(255,255,255,0.01);
+  background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 12px;
@@ -866,7 +870,7 @@ body {
 }
 
 .check-history-row:active {
-  background: rgba(255, 255, 255, 0.03);
+  background: #f1f5f9;
 }
 
 .c-hist-info {
@@ -900,7 +904,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.4);
   backdrop-filter: blur(5px);
   z-index: 2000;
   display: none;
@@ -913,7 +917,7 @@ body {
 }
 
 .m-modal-card {
-  background: #0f172a;
+  background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 24px 24px 0 0;
   width: 100%;
@@ -923,6 +927,7 @@ body {
   display: flex;
   flex-direction: column;
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.12);
 }
 
 @keyframes slideUp {
@@ -939,7 +944,7 @@ body {
 }
 
 .m-modal-header h4 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: bold;
 }
 
@@ -964,7 +969,7 @@ body {
 
 /* 전자서명 모달 본문 */
 .sign-notice {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
   text-align: center;
 }
@@ -999,7 +1004,7 @@ body {
   border-radius: 8px;
   padding: 10px;
   font-family: var(--font-family);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
@@ -1008,7 +1013,7 @@ body {
   gap: 6px;
 }
 
-.btn-clear { background: #334155; color: var(--text-primary); }
+.btn-clear { background: #e2e8f0; color: var(--text-primary); }
 .btn-confirm { background: var(--color-interest); color: white; }
 
 /* 결과 확인 팝업 모달 */
@@ -1016,11 +1021,11 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  background: rgba(0,0,0,0.3);
+  background: #f8fafc;
   padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--border-color);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .res-c-item {
@@ -1034,26 +1039,26 @@ body {
 }
 
 .res-c-item strong {
-  font-size: 13px;
+  font-size: 15px;
   font-family: monospace;
 }
 
 .c-action-block {
-  background: rgba(255,255,255,0.01);
+  background: #f8fafc;
   border-left: 4px solid var(--color-normal);
   padding: 10px;
   border-radius: 0 6px 6px 0;
 }
 
 .c-action-hdr {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: bold;
   margin-bottom: 4px;
 }
 
 .c-action-txt {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.4;
   font-weight: 700;
 }
@@ -1065,7 +1070,7 @@ body {
 }
 
 .signature-image-preview-box .preview-lbl {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-secondary);
   font-weight: bold;
 }
@@ -1089,7 +1094,7 @@ body {
 .viewer-meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
@@ -1103,7 +1108,7 @@ body {
 }
 
 .view-item-badge-row {
-  background: rgba(255,255,255,0.01);
+  background: #f8fafc;
   border: 1px solid var(--border-color);
   padding: 8px 12px;
   border-radius: 8px;
@@ -1113,12 +1118,12 @@ body {
 }
 
 .view-item-badge-row span.itm-lbl {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
 }
 
 .view-item-badge-row span.itm-val-badge {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 20px;
@@ -1130,7 +1135,7 @@ body {
 .view-item-badge-row span.itm-val-badge.val-해당없음 { background-color: #64748b; }
 
 .viewer-remarks-box {
-  background: rgba(0,0,0,0.3);
+  background: #f8fafc;
   padding: 10px;
   border-radius: 8px;
   margin-top: 10px;
@@ -1138,14 +1143,14 @@ body {
 }
 
 .viewer-remarks-box .r-hdr {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
 .viewer-remarks-box .r-txt {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -1194,7 +1199,7 @@ body {
 /* 배지 범용 클래스 */
 .badge {
   font-weight: bold;
-  font-size: 10px;
+  font-size: 12px;
   padding: 2px 8px;
   border-radius: 20px;
   color: white;
