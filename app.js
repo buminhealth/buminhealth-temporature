@@ -6,7 +6,7 @@
 // [패치 ①] Google Sheets Web App (GAS) 연동 설정 - 영구 저장/삭제용
 // =========================================================================
 // ⚠️ GAS 배포 후 발급받은 Web App URL로 반드시 교체할 것
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyrqnZ6DGMxnj_4QbXffSnT1ANwni2mCiw0mOxf5hmsk4tammjsFa5lIJyV6c2LqDeTJQ/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec";
 
 /**
  * GAS Web App에 POST 요청을 보내는 공용 헬퍼.
@@ -84,7 +84,19 @@ document.addEventListener("DOMContentLoaded", () => {
   loadFromSheets().then(() => {
     renderArchive();
     updateMissingRecordsWidget();
+    // [PC 대시보드 패치] 대시보드 초기 렌더
+    if (typeof renderDashboard === "function") {
+      renderDashboard();
+      setDashboardSyncStatus(true);
+    }
+  }).catch(() => {
+    if (typeof setDashboardSyncStatus === "function") setDashboardSyncStatus(false);
   });
+
+  // [PC 대시보드 패치] 시계 1초 갱신 (모바일에서는 desktop-dashboard가 숨김이므로 무해)
+  if (typeof startDashboardClock === "function") {
+    startDashboardClock();
+  }
   updateMissingRecordsWidget();
 
   // 이벤트 트리거 바인딩
@@ -943,6 +955,9 @@ function renderArchive() {
       printSelectedChecklists();
     });
   });
+
+  // [PC 대시보드 패치] 보관소 갱신될 때마다 대시보드도 동기화 (모바일에선 숨김 상태라 무해)
+  if (typeof renderDashboard === "function") renderDashboard();
 }
 
 // 점검표 날짜 클릭 상세보기 팝업 엔진
@@ -1299,3 +1314,297 @@ function deleteSelectedChecklists() {
   })();
 }
 
+
+// =========================================================================
+// [PC 대시보드 패치] 좌측 통합 관제 대시보드 렌더링 로직
+// — 모바일에서는 .desktop-dashboard가 CSS로 숨겨지므로 함수가 호출돼도 영향 없음
+// — Chart.js 4.x UMD가 index.html head에서 선행 로드되어야 함
+// =========================================================================
+
+let _dashLineChart = null;
+let _dashDonutChart = null;
+let _dashClockTimer = null;
+
+// 폭염 단계 → 색상 (style.css의 KPI 컬러 토큰과 일관)
+const STAGE_COLORS = {
+  "정상":   "#2563eb",
+  "관심":   "#0891b2",
+  "주의":   "#ca8a04",
+  "경고":   "#ea580c",
+  "위험":   "#dc2626"
+};
+const STAGE_ORDER = ["정상", "관심", "주의", "경고", "위험"];
+
+/**
+ * 대시보드 전체 렌더링 (KPI + 라인차트 + 도넛 + 테이블 + 미제출 리스트)
+ * tempDb / checklistDb 메모리 데이터를 기반으로 동작.
+ */
+function renderDashboard() {
+  // 모바일 화면 또는 대시보드 컨테이너가 없으면 즉시 종료
+  const dashEl = document.getElementById("desktop-dashboard");
+  if (!dashEl || dashEl.offsetParent === null) return;
+  // Chart.js 로드 실패 시 차트는 건너뛰고 KPI/테이블/미제출만 갱신
+  const hasChart = (typeof window.Chart !== "undefined");
+
+  // 기준 날짜 계산
+  const today = _dashYmd(new Date());
+  const weekAgo = _dashYmd(new Date(Date.now() - 6 * 86400000));
+
+  // ── (b) KPI 계산 ──
+  const todayCount = tempDb.filter(r => r.date === today).length;
+  const weekRecs   = tempDb.filter(r => r.date >= weekAgo && r.date <= today);
+  const attentionUp = weekRecs.filter(r => ["주의","경고","위험"].includes(r.stage)).length;
+  const warningUp   = weekRecs.filter(r => ["경고","위험"].includes(r.stage)).length;
+  const missingSlots = _dashCountMissingSlots(weekAgo, today);
+
+  _setText("kpi-today-count",      todayCount);
+  _setText("kpi-attention-count",  attentionUp);
+  _setText("kpi-warning-count",    warningUp);
+  _setText("kpi-missing-count",    missingSlots);
+
+  // ── (c) 라인 차트: 최근 7일 일별 평균 체감온도 ──
+  const lineLabels = [];
+  const lineData = [];
+  const linePointColors = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const ymd = _dashYmd(d);
+    lineLabels.push((d.getMonth() + 1) + "/" + d.getDate());
+    const dayRecs = tempDb.filter(r => r.date === ymd);
+    if (dayRecs.length === 0) {
+      lineData.push(null);
+      linePointColors.push("#cbd5e1");
+    } else {
+      const avg = dayRecs.reduce((s, r) => s + (r.perceived || 0), 0) / dayRecs.length;
+      const rounded = Math.round(avg * 10) / 10;
+      lineData.push(rounded);
+      linePointColors.push(_dashStageOf(rounded) ? STAGE_COLORS[_dashStageOf(rounded)] : "#0891b2");
+    }
+  }
+  _setText("chart-line-period", lineLabels[0] + " ~ " + lineLabels[lineLabels.length-1]);
+  if (hasChart) _renderLineChart(lineLabels, lineData, linePointColors);
+
+  // ── (d) 하단 좌: 최근 5건 테이블 ──
+  const recent5 = tempDb.slice(0, 5);
+  _setText("table-recent-count", recent5.length + "건");
+  const tbody = document.getElementById("dash-recent-tbody");
+  if (tbody) {
+    if (recent5.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="dash-empty">측정 기록이 아직 없습니다.</td></tr>`;
+    } else {
+      tbody.innerHTML = recent5.map(r => {
+        const slotKor = r.slot === "AM" ? "오전" : "오후";
+        const dateShort = r.date.substring(5).replace("-", "/");
+        const stageColor = STAGE_COLORS[r.stage] || "#94a3b8";
+        return `<tr>
+          <td>${dateShort} <span style="color:var(--text-muted);font-size:10px;">${slotKor}</span></td>
+          <td style="font-weight:600;">${_dashTruncate(r.location, 12)}</td>
+          <td style="font-weight:700;font-variant-numeric:tabular-nums;">${(r.perceived||0).toFixed(1)}℃</td>
+          <td><span class="dash-table-stage" style="background:${stageColor};">${r.stage}</span></td>
+        </tr>`;
+      }).join("");
+    }
+  }
+
+  // ── (d) 하단 우: 단계별 도넛 차트 ──
+  const stageDist = {};
+  STAGE_ORDER.forEach(s => stageDist[s] = 0);
+  weekRecs.forEach(r => {
+    if (stageDist.hasOwnProperty(r.stage)) stageDist[r.stage]++;
+  });
+  if (hasChart) _renderDonutChart(stageDist);
+
+  // ── (e) 미제출 누락 경보 리스트 ──
+  _renderMissingList(weekAgo, today);
+}
+
+// 시계 시작 (1초 간격)
+function startDashboardClock() {
+  const tick = () => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    _setText("dash-clock", `${hh}:${mm}:${ss}`);
+    const days = ["일","월","화","수","목","금","토"];
+    _setText("dash-date", `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`);
+  };
+  tick();
+  if (_dashClockTimer) clearInterval(_dashClockTimer);
+  _dashClockTimer = setInterval(tick, 1000);
+}
+
+// 동기화 상태 칩
+function setDashboardSyncStatus(ok) {
+  const chip = document.getElementById("dash-sync-chip");
+  const txt  = document.getElementById("dash-sync-text");
+  if (!chip || !txt) return;
+  if (ok) {
+    chip.classList.remove("error");
+    txt.textContent = "Google Sheets 동기화 정상";
+  } else {
+    chip.classList.add("error");
+    txt.textContent = "Sheets 연결 실패 — 오프라인 모드";
+  }
+}
+
+// ─── 차트 렌더 헬퍼 ───
+function _renderLineChart(labels, data, pointColors) {
+  const ctx = document.getElementById("chart-line-perceived");
+  if (!ctx) return;
+  if (_dashLineChart) _dashLineChart.destroy();
+  _dashLineChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "일별 평균 체감온도",
+        data: data,
+        borderColor: "#0891b2",
+        backgroundColor: "rgba(8, 145, 178, 0.08)",
+        pointBackgroundColor: pointColors,
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        tension: 0.35,
+        fill: true,
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => item.parsed.y != null ? `평균 ${item.parsed.y.toFixed(1)}℃` : "측정 없음"
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          suggestedMin: 25,
+          suggestedMax: 40,
+          ticks: { callback: (v) => v + "℃", font: { size: 10 } },
+          grid: { color: "rgba(0,0,0,0.04)" }
+        },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function _renderDonutChart(stageDist) {
+  const ctx = document.getElementById("chart-donut-stage");
+  if (!ctx) return;
+  if (_dashDonutChart) _dashDonutChart.destroy();
+  const labels = STAGE_ORDER;
+  const data = labels.map(s => stageDist[s] || 0);
+  const colors = labels.map(s => STAGE_COLORS[s]);
+  const total = data.reduce((s, v) => s + v, 0);
+  _dashDonutChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: total === 0 ? [1,0,0,0,0] : data,  // 데이터 없으면 회색 도넛 표시
+        backgroundColor: total === 0 ? ["#e2e8f0","#e2e8f0","#e2e8f0","#e2e8f0","#e2e8f0"] : colors,
+        borderWidth: 2,
+        borderColor: "#fff"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "62%",
+      plugins: {
+        legend: {
+          position: "right",
+          labels: { font: { size: 11 }, boxWidth: 10, padding: 6 }
+        },
+        tooltip: {
+          enabled: total > 0,
+          callbacks: {
+            label: (item) => `${item.label}: ${item.parsed}건`
+          }
+        }
+      }
+    }
+  });
+}
+
+// ─── 미제출 슬롯 계산 ───
+function _dashCountMissingSlots(startYmd, endYmd) {
+  // 각 날짜의 AM/PM 슬롯 중 tempDb에 없는 슬롯을 카운트
+  let missing = 0;
+  const start = _dashYmdToDate(startYmd);
+  const end = _dashYmdToDate(endYmd);
+  for (let t = start.getTime(); t <= end.getTime(); t += 86400000) {
+    const ymd = _dashYmd(new Date(t));
+    const dayRecs = tempDb.filter(r => r.date === ymd);
+    const hasAM = dayRecs.some(r => r.slot === "AM");
+    const hasPM = dayRecs.some(r => r.slot === "PM");
+    if (!hasAM) missing++;
+    if (!hasPM) missing++;
+  }
+  return missing;
+}
+
+function _renderMissingList(startYmd, endYmd) {
+  const box = document.getElementById("dash-missing-list");
+  if (!box) return;
+  const items = [];
+  const start = _dashYmdToDate(startYmd);
+  const end = _dashYmdToDate(endYmd);
+  for (let t = end.getTime(); t >= start.getTime(); t -= 86400000) {
+    const d = new Date(t);
+    const ymd = _dashYmd(d);
+    const dateLabel = (d.getMonth()+1) + "/" + d.getDate();
+    const dayRecs = tempDb.filter(r => r.date === ymd);
+    const hasAM = dayRecs.some(r => r.slot === "AM");
+    const hasPM = dayRecs.some(r => r.slot === "PM");
+    if (!hasAM) items.push({ date: dateLabel, slot: "오전 10시 미제출" });
+    if (!hasPM) items.push({ date: dateLabel, slot: "오후 2시 미제출" });
+  }
+  _setText("missing-card-count", items.length + "건");
+  if (items.length === 0) {
+    box.innerHTML = `<div class="dash-empty" style="font-size:11px;padding:14px;">✓ 최근 7일 모든 측정 완료</div>`;
+  } else {
+    box.innerHTML = items.slice(0, 10).map(it =>
+      `<div class="dash-missing-item">
+        <span class="miss-date">${it.date}</span>
+        <span class="miss-slot">${it.slot}</span>
+      </div>`
+    ).join("");
+  }
+}
+
+// ─── 공용 유틸 ───
+function _dashYmd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+function _dashYmdToDate(ymd) {
+  const [y,m,d] = ymd.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function _dashStageOf(perceived) {
+  if (perceived >= 38) return "위험";
+  if (perceived >= 35) return "경고";
+  if (perceived >= 33) return "주의";
+  if (perceived >= 31) return "관심";
+  return "정상";
+}
+function _dashTruncate(s, n) {
+  s = String(s || "");
+  return s.length > n ? s.substring(0, n) + "…" : s;
+}
+function _setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
