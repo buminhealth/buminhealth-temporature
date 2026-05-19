@@ -45,12 +45,13 @@ body {
    ========================================================================= */
 .workspace-wrapper {
   display: grid;
-  grid-template-columns: 480px 420px;
-  gap: 60px;
-  align-items: center;
+  /* [PC 대시보드 패치] 좌측 대시보드 영역 확장: 모바일 영역(420px) 우측 유지, 좌측은 유동 */
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 28px;
+  align-items: stretch;
   justify-content: center;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1400px;
   padding: 20px;
   height: 95dvh;  /* [모바일 패치] vh→dvh */
 }
@@ -1268,6 +1269,325 @@ body {
 }
 
 /* =========================================================================
+   [PC 대시보드 패치] DESKTOP DASHBOARD (좌측 통합 관제)
+   ========================================================================= */
+.desktop-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 8px 4px 0;
+  animation: fadeIn 0.5s ease;
+}
+.desktop-dashboard::-webkit-scrollbar {
+  width: 6px;
+}
+.desktop-dashboard::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 4px;
+}
+
+/* (a) 대시보드 헤더 */
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #ffffff 60%, rgba(8, 145, 178, 0.06));
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  flex-shrink: 0;
+}
+.dash-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dash-brand > i {
+  font-size: 28px;
+  color: var(--color-warning);
+}
+.dash-brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #1e293b 40%, var(--color-interest));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.dash-brand-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.dash-header-meta {
+  text-align: right;
+}
+.dash-clock {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+.dash-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.dash-sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-interest);
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+.dash-sync-chip.error {
+  color: var(--color-danger);
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+.sync-dot {
+  width: 6px; height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+.dash-sync-chip.error .sync-dot { background: var(--color-danger); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* (b) KPI 카드 4개 */
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dash-kpi {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: transform 0.2s ease;
+}
+.dash-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.kpi-icon {
+  width: 42px; height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.kpi-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.dash-kpi.card-normal    .kpi-icon { background: rgba(37, 99, 235, 0.1);  color: var(--color-normal); }
+.dash-kpi.card-attention .kpi-icon { background: rgba(202, 138, 4, 0.12); color: var(--color-attention); }
+.dash-kpi.card-warning   .kpi-icon { background: rgba(234, 88, 12, 0.12); color: var(--color-warning); }
+.dash-kpi.card-danger    .kpi-icon { background: rgba(220, 38, 38, 0.1);  color: var(--color-danger); }
+
+/* (c) 공용 카드 */
+.dash-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.dash-card-header h4 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-card-header h4 i {
+  color: var(--color-interest);
+  font-size: 12px;
+}
+.dash-card-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.04);
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* 차트 박스 */
+.dash-chart-box {
+  position: relative;
+  height: 180px;
+}
+.dash-chart-box.donut {
+  height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 하단 그리드 - 좌(테이블) / 우(도넛/QR/미제출) */
+.dash-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* 테이블 */
+.dash-table-box {
+  overflow-x: auto;
+}
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dash-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.dash-table td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.dash-table tbody tr:last-child td { border-bottom: none; }
+.dash-table tbody tr:hover td { background: rgba(8, 145, 178, 0.03); }
+.dash-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 20px !important;
+}
+.dash-table-stage {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+/* 미제출 누락 카드 (대시보드 우하단) */
+.dash-missing-card { padding: 14px 16px; }
+.dash-missing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.dash-missing-list::-webkit-scrollbar { width: 4px; }
+.dash-missing-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); }
+.dash-missing-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(220, 38, 38, 0.05);
+  border-left: 3px solid var(--color-danger);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.dash-missing-item .miss-date {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.dash-missing-item .miss-slot {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* QR 카드 컴팩트화 (대시보드 내부 배치용) */
+.desktop-dashboard .qr-container-card {
+  padding: 14px;
+  text-align: center;
+}
+.desktop-dashboard .qr-container-card .qr-box {
+  height: 120px;
+  margin: 6px auto;
+}
+.desktop-dashboard .qr-container-card .qr-title {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.desktop-dashboard .qr-container-card .qr-url {
+  font-size: 9px;
+  word-break: break-all;
+}
+
+/* 768px 이하 모바일 진입 시 대시보드 완전 숨김 (모바일 영향 0%) */
+@media (max-width: 768px) {
+  .desktop-dashboard {
+    display: none !important;
+  }
+  .workspace-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 좁은 PC 화면(1100px 이하) 대응: KPI 2x2, 하단 그리드 단일 컬럼 */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dash-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================================
    4. PRINT (PDF 출력 공단 양식)
    ========================================================================= */
 @media print {
@@ -1356,3 +1676,4 @@ body {
   accent-color: var(--color-normal);
   vertical-align: middle;
 }
+
