@@ -6,7 +6,7 @@
 // [패치 ①] Google Sheets Web App (GAS) 연동 설정 - 영구 저장/삭제용
 // =========================================================================
 // ⚠️ GAS 배포 후 발급받은 Web App URL로 반드시 교체할 것
-const GAS_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyrqnZ6DGMxnj_4QbXffSnT1ANwni2mCiw0mOxf5hmsk4tammjsFa5lIJyV6c2LqDeTJQ/exec";
 
 /**
  * GAS Web App에 POST 요청을 보내는 공용 헬퍼.
