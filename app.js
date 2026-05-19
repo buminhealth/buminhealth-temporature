@@ -148,6 +148,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("btn-print-selected-temp").addEventListener("click", printSelectedTempRecords);
   document.getElementById("btn-print-selected-check").addEventListener("click", printSelectedChecklists);
+  document.getElementById("btn-delete-selected-temp").addEventListener("click", deleteSelectedTempRecords);
+  document.getElementById("btn-delete-selected-check").addEventListener("click", deleteSelectedChecklists);
   
   document.getElementById("m-input-location").addEventListener("change", (e) => {
     const otherInput = document.getElementById("m-input-location-other");
@@ -1102,4 +1104,50 @@ function printSelectedChecklists() {
   });
 
   window.print();
+}
+
+// =========================================================================
+// [13. 선택 항목 삭제 기능 - 체감기록 / 자율점검표]
+// =========================================================================
+function deleteSelectedTempRecords() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-temp-print:checked"))
+    .map(chk => chk.getAttribute("data-id"));
+
+  if (selectedIds.length === 0) {
+    alert("삭제할 체감기록을 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 체감기록 ${selectedIds.length}건을 삭제하시겠습니까?\n삭제 후 복구가 불가능합니다.`)) {
+    return;
+  }
+
+  tempDb = tempDb.filter(r => !selectedIds.includes(r.date + "_" + r.slot));
+
+  document.getElementById("chk-temp-all").checked = false;
+  renderArchive();
+  updateMissingRecordsWidget();
+
+  alert(`${selectedIds.length}건의 체감기록이 삭제되었습니다.`);
+}
+
+function deleteSelectedChecklists() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-check-print:checked"))
+    .map(chk => chk.getAttribute("data-id"));
+
+  if (selectedIds.length === 0) {
+    alert("삭제할 자율점검표를 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 자율점검표 ${selectedIds.length}건을 삭제하시겠습니까?\n삭제 후 복구가 불가능합니다.`)) {
+    return;
+  }
+
+  checklistDb = checklistDb.filter(r => !selectedIds.includes(r.id.toString()));
+
+  document.getElementById("chk-check-all").checked = false;
+  renderArchive();
+
+  alert(`${selectedIds.length}건의 자율점검표가 삭제되었습니다.`);
 }
