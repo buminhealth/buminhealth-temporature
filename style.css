@@ -1463,99 +1463,150 @@ body {
   position: relative;
   height: 180px;
 }
-.dash-chart-box.donut {
-  height: 200px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+
+/* 공용 empty 표시 */
+.dash-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 20px;
 }
 
-/* 하단 그리드 - 좌(테이블) / 우(도넛/QR/미제출) */
+/* 하단 그리드 - 좌(체감기록) / 우(자율점검) */
 .dash-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-/* 테이블 */
-.dash-table-box {
-  overflow-x: auto;
+/* [수정 v3] 대시보드 보관소 카드 (체감기록 + 자율점검) */
+.dash-archive-card {
+  min-height: 280px;
 }
-.dash-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-.dash-table th {
-  text-align: left;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-color);
-}
-.dash-table td {
-  padding: 8px;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-  color: var(--text-primary);
-  font-weight: 500;
-}
-.dash-table tbody tr:last-child td { border-bottom: none; }
-.dash-table tbody tr:hover td { background: rgba(8, 145, 178, 0.03); }
-.dash-empty {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 11px;
-  padding: 20px !important;
-}
-.dash-table-stage {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  color: white;
-}
-
-/* 미제출 누락 카드 (대시보드 우하단) */
-.dash-missing-card { padding: 14px 16px; }
-.dash-missing-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 140px;
-  overflow-y: auto;
-}
-.dash-missing-list::-webkit-scrollbar { width: 4px; }
-.dash-missing-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); }
-.dash-missing-item {
+.dash-archive-actionbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  background: rgba(220, 38, 38, 0.05);
-  border-left: 3px solid var(--color-danger);
-  border-radius: 4px;
+  padding: 6px 8px;
+  background: rgba(8, 145, 178, 0.04);
+  border-radius: 8px;
   font-size: 11px;
+  flex-shrink: 0;
 }
-.dash-missing-item .miss-date {
+.dash-action-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.dash-action-all input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.dash-action-buttons {
+  display: flex;
+  gap: 6px;
+}
+.dash-act-btn {
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s;
+}
+.dash-act-btn:hover { opacity: 0.85; }
+.dash-act-print { background: var(--color-normal); color: white; }
+.dash-act-delete { background: var(--color-danger); color: white; }
+
+.dash-archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.dash-archive-list::-webkit-scrollbar { width: 5px; }
+.dash-archive-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+
+.dash-arc-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 11px;
+  transition: background 0.15s;
+}
+.dash-arc-item:hover { background: rgba(8, 145, 178, 0.04); }
+.dash-arc-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.dash-arc-item-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash-arc-item-title {
   font-weight: 700;
   color: var(--text-primary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.dash-missing-item .miss-slot {
-  color: var(--color-danger);
-  font-weight: 600;
+.dash-arc-item-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.dash-arc-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.dash-arc-item .badge {
+  font-size: 9px;
+  padding: 1px 6px;
+}
+.dash-arc-btn-print {
+  border: none;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-normal);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.dash-arc-btn-print:hover { background: rgba(37, 99, 235, 0.2); }
 
-/* QR 카드 컴팩트화 (대시보드 내부 배치용) */
-.desktop-dashboard .qr-container-card {
+/* QR 카드 단독 행 */
+.dash-qr-full {
   padding: 14px;
   text-align: center;
 }
 .desktop-dashboard .qr-container-card .qr-box {
-  height: 120px;
+  height: 110px;
   margin: 6px auto;
 }
 .desktop-dashboard .qr-container-card .qr-title {
@@ -1577,7 +1628,7 @@ body {
   }
 }
 
-/* 좁은 PC 화면(1100px 이하) 대응: KPI 2x2, 하단 그리드 단일 컬럼 */
+/* 좁은 PC 화면(1180px 이하) 대응: KPI 2x2, 하단 그리드 단일 컬럼 */
 @media (min-width: 769px) and (max-width: 1180px) {
   .dash-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1676,4 +1727,3 @@ body {
   accent-color: var(--color-normal);
   vertical-align: middle;
 }
-
