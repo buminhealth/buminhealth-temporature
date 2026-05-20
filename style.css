@@ -1479,6 +1479,11 @@ body {
   gap: 12px;
 }
 
+/* [TBM 패치] 3열 그리드 (체감/TBM/자율점검) */
+.dash-grid-3col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 /* [수정 v3] 대시보드 보관소 카드 (체감기록 + 자율점검) */
 .dash-archive-card {
   min-height: 280px;
@@ -1636,6 +1641,42 @@ body {
   .dash-bottom-grid {
     grid-template-columns: 1fr;
   }
+  /* [TBM 패치] 3열 그리드도 단일 컬럼으로 */
+  .dash-grid-3col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* [TBM 패치] TBM 보관소 카드 항목 요약 표시 */
+.tbm-items-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.tbm-item-ok,
+.tbm-item-flag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.tbm-item-ok {
+  background: rgba(8, 145, 178, 0.08);
+  color: var(--color-interest);
+}
+.tbm-item-flag {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--color-danger);
+  font-weight: 700;
+}
+.tbm-remarks {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.03);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 /* =========================================================================
