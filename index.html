@@ -65,11 +65,11 @@
           </div>
         </div>
         <div class="dash-kpi card-normal">
-          <div class="kpi-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+          <div class="kpi-icon"><i class="fa-solid fa-users-gear"></i></div>
           <div class="kpi-body">
-            <div class="kpi-label">자율점검</div>
-            <div class="kpi-value" id="kpi-checklist-count">0</div>
-            <div class="kpi-sub">건 (이번 주)</div>
+            <div class="kpi-label">오늘 TBM</div>
+            <div class="kpi-value" id="kpi-tbm-count">0</div>
+            <div class="kpi-sub">건 (작업 전 자가진단)</div>
           </div>
         </div>
       </div>
@@ -85,8 +85,8 @@
         </div>
       </div>
 
-      <!-- (d) 하단 그리드: 좌(체감기록 대장) / 우(자율점검 이력) -->
-      <div class="dash-bottom-grid">
+      <!-- (d) 하단 그리드: 좌(체감기록 대장) / 중(TBM 이력) / 우(자율점검 이력) -->
+      <div class="dash-bottom-grid dash-grid-3col">
         <!-- 체감기록 대장 -->
         <div class="dash-card dash-archive-card">
           <div class="dash-card-header">
@@ -107,6 +107,30 @@
             </div>
           </div>
           <div class="dash-archive-list" id="dash-temp-list">
+            <div class="dash-empty">데이터 불러오는 중…</div>
+          </div>
+        </div>
+
+        <!-- [TBM 패치] TBM 이력 -->
+        <div class="dash-card dash-archive-card">
+          <div class="dash-card-header">
+            <h4><i class="fa-solid fa-users-gear"></i> TBM 이력</h4>
+            <span class="dash-card-tag" id="dash-tbm-count">0건</span>
+          </div>
+          <div class="dash-archive-actionbar">
+            <label class="dash-action-all">
+              <input type="checkbox" id="dash-chk-tbm-all"> 전체 선택
+            </label>
+            <div class="dash-action-buttons">
+              <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedTbm()">
+                <i class="fa-solid fa-file-pdf"></i> 출력
+              </button>
+              <button class="dash-act-btn dash-act-delete" onclick="dashDeleteSelectedTbm()">
+                <i class="fa-solid fa-trash"></i> 삭제
+              </button>
+            </div>
+          </div>
+          <div class="dash-archive-list" id="dash-tbm-list">
             <div class="dash-empty">데이터 불러오는 중…</div>
           </div>
         </div>
@@ -272,6 +296,36 @@
               <button class="m-btn m-btn-green" id="btn-open-sign-modal">
                 <i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기
               </button>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- [TBM 패치] SCREEN: TBM 자가진단 (작업 전 안전점검) -->
+            <!-- ========================================== -->
+            <div class="app-screen" id="screen-tbm">
+              <div class="screen-intro">
+                <h3>🦺 TBM 자가진단 체크리스트</h3>
+                <p>작업 전 안전회의(Tool Box Meeting). 본인 컨디션과 동료 상태를 확인하고 안전수칙을 서약합니다.</p>
+              </div>
+
+              <div class="checklist-items-group">
+
+                <div class="form-field" style="margin-bottom: 15px;">
+                  <label><i class="fa-regular fa-calendar-check"></i> 작성 날짜</label>
+                  <input type="date" class="m-input" id="m-input-tbm-date">
+                </div>
+
+                <!-- 9개 TBM 항목 — JS에서 동적 생성 -->
+                <div id="tbm-items-container" class="checklist-divider"></div>
+
+                <div class="form-field" style="margin-top: 15px; padding: 0 5px;">
+                  <label><i class="fa-regular fa-comment-dots"></i> 특이사항</label>
+                  <input type="text" class="m-input" id="tbm-input-remarks" placeholder="민감군 대상자 명단, 추가 안전조치 등">
+                </div>
+
+                <button class="m-btn m-btn-blue" id="btn-submit-tbm">
+                  <i class="fa-solid fa-users-gear"></i> TBM 자가진단 제출
+                </button>
+              </div>
             </div>
 
             <!-- ========================================== -->
@@ -460,8 +514,9 @@
 
               <!-- 보관소 서브 탭 분류 -->
               <div class="archive-sub-tabs">
-                <button class="sub-tab-btn active" data-sub="sub-temp">체감기록 대장</button>
-                <button class="sub-tab-btn" data-sub="sub-check">자율점검 이력 (날짜클릭)</button>
+                <button class="sub-tab-btn active" data-sub="sub-temp">체감기록</button>
+                <button class="sub-tab-btn" data-sub="sub-tbm">TBM 이력</button>
+                <button class="sub-tab-btn" data-sub="sub-check">자율점검</button>
               </div>
 
               <!-- 서브 탭 1: 체감기록 대장 -->
@@ -498,7 +553,30 @@
                 </div>
               </div>
 
-              <!-- 서브 탭 2: 자율점검표 이력 -->
+              <!-- [TBM 패치] 서브 탭: TBM 이력 -->
+              <div class="archive-sub-pane" id="sub-tbm">
+                <div class="archive-search-box" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <input type="date" class="m-input" id="search-tbm-date-start" style="flex: 1;" title="시작일">
+                  <span style="display: flex; align-items: center; color: var(--text-muted);">~</span>
+                  <input type="date" class="m-input" id="search-tbm-date-end" style="flex: 1;" title="종료일">
+                </div>
+
+                <div class="archive-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <label style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-tbm-all" style="width: 16px; height: 16px;"> 전체 선택
+                  </label>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="m-btn m-btn-blue" id="btn-print-selected-tbm" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-print"></i> 선택 출력</button>
+                    <button class="m-btn m-btn-delete" id="btn-delete-selected-tbm" style="margin: 0; padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
+                  </div>
+                </div>
+
+                <div class="temp-records-list" id="archive-tbm-list">
+                  <!-- 동적 카드 삽입 -->
+                </div>
+              </div>
+
+              <!-- 서브 탭 3: 자율점검표 이력 -->
               <div class="archive-sub-pane" id="sub-check">
                 <div class="archive-search-box" style="display: flex; gap: 8px; margin-bottom: 12px;">
                   <input type="date" class="m-input" id="search-check-date-start" style="flex: 1;" title="시작일">
@@ -529,6 +607,10 @@
             <button class="nav-item active" data-screen="screen-record">
               <i class="fa-solid fa-temperature-half"></i>
               <span>체감기록</span>
+            </button>
+            <button class="nav-item" data-screen="screen-tbm">
+              <i class="fa-solid fa-users-gear"></i>
+              <span>TBM</span>
             </button>
             <button class="nav-item" data-screen="screen-checklist">
               <i class="fa-solid fa-clipboard-check"></i>
