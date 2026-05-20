@@ -293,7 +293,7 @@ body {
   border-top: 1px solid var(--border-color);
   background: #ffffff;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   align-items: center;
   z-index: 10;
 }
