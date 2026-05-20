@@ -6,7 +6,7 @@
 // [패치 ①] Google Sheets Web App (GAS) 연동 설정 - 영구 저장/삭제용
 // =========================================================================
 // ⚠️ GAS 배포 후 발급받은 Web App URL로 반드시 교체할 것
-const GAS_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyrqnZ6DGMxnj_4QbXffSnT1ANwni2mCiw0mOxf5hmsk4tammjsFa5lIJyV6c2LqDeTJQ/exec";
 
 /**
  * GAS Web App에 POST 요청을 보내는 공용 헬퍼.
@@ -684,71 +684,8 @@ function submitChecklist() {
 // [10. "기록지 보관소" 및 "누락된 기록지" 스캔 로직]
 // =========================================================================
 function updateMissingRecordsWidget() {
-  const container = document.getElementById("missing-list-container");
-  container.innerHTML = "";
-
-  // 최근 4일간 슬롯 생성 (AM, PM)
-  const today = new Date();
-  let missingSlotsCount = 0;
-
-  for (let i = 0; i < 4; i++) {
-    const targetDate = new Date(today);
-    targetDate.setDate(today.getDate() - i);
-    
-    const y = targetDate.getFullYear();
-    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const d = String(targetDate.getDate()).padStart(2, '0');
-    const dateStr = `${y}-${m}-${d}`;
-
-    const slots = ["AM", "PM"];
-    
-    slots.forEach(slot => {
-      // 당일 오늘 오후의 경우 아직 시간상 작성 전일 수 있으므로 누락 처리에서 스킵
-      if (i === 0 && slot === "PM" && today.getHours() < 14) {
-        return;
-      }
-
-      // 데이터 검색
-      const exist = tempDb.find(r => r.date === dateStr && r.slot === slot);
-      
-      if (!exist) {
-        missingSlotsCount++;
-        const card = document.createElement("div");
-        card.className = "missing-row-card";
-        
-        const slotKor = slot === "AM" ? "오전 10시 측정" : "오후 2시 측정";
-        
-        card.innerHTML = `
-          <span class="date-lbl"><i class="fa-regular fa-clock"></i> ${dateStr.substring(5).replace('-', '.')} [${slotKor}]</span>
-          <span class="alert-tag">기록 누락됨</span>
-        `;
-
-        // 누락 카드 누르면 바로 작성 화면으로 점프 & 사후 기입 유도
-        card.addEventListener("click", () => {
-          setSlot(slot);
-          
-          // 작성일자를 누락된 일자로 동적 강제 세팅 (사후 누락 보완)
-          alert(`[누락 보관 보완] ${dateStr} ${slotKor} 기록 작성을 시작합니다.`);
-          
-          // 화면 전환
-          document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-          document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
-          document.querySelector(".nav-item[data-screen='screen-record']").classList.add("active");
-          document.getElementById("screen-record").classList.add("active");
-        });
-
-        container.appendChild(card);
-      }
-    });
-  }
-
-  const widget = document.getElementById("missing-records-box");
-  if (missingSlotsCount === 0) {
-    widget.style.display = "none"; // 누락 없음 시 박스 숨김
-  } else {
-    widget.style.display = "block";
-    widget.querySelector("span").innerText = `미제출 누락 기록지 ${missingSlotsCount}건 보관 중!`;
-  }
+  // [수정 v3] 미제출 누락 경보 기능 삭제됨 — 호출처 보존을 위해 빈 함수로 유지
+  return;
 }
 
 // =========================================================================
@@ -1355,12 +1292,13 @@ function renderDashboard() {
   const weekRecs   = tempDb.filter(r => r.date >= weekAgo && r.date <= today);
   const attentionUp = weekRecs.filter(r => ["주의","경고","위험"].includes(r.stage)).length;
   const warningUp   = weekRecs.filter(r => ["경고","위험"].includes(r.stage)).length;
-  const missingSlots = _dashCountMissingSlots(weekAgo, today);
+  // [수정 v3] 미제출 슬롯 → 이번 주 자율점검 건수로 교체
+  const weekChecks = checklistDb.filter(r => r.date >= weekAgo && r.date <= today).length;
 
   _setText("kpi-today-count",      todayCount);
   _setText("kpi-attention-count",  attentionUp);
   _setText("kpi-warning-count",    warningUp);
-  _setText("kpi-missing-count",    missingSlots);
+  _setText("kpi-checklist-count",  weekChecks);
 
   // ── (c) 라인 차트: 최근 7일 일별 평균 체감온도 ──
   const lineLabels = [];
@@ -1384,38 +1322,9 @@ function renderDashboard() {
   _setText("chart-line-period", lineLabels[0] + " ~ " + lineLabels[lineLabels.length-1]);
   if (hasChart) _renderLineChart(lineLabels, lineData, linePointColors);
 
-  // ── (d) 하단 좌: 최근 5건 테이블 ──
-  const recent5 = tempDb.slice(0, 5);
-  _setText("table-recent-count", recent5.length + "건");
-  const tbody = document.getElementById("dash-recent-tbody");
-  if (tbody) {
-    if (recent5.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="dash-empty">측정 기록이 아직 없습니다.</td></tr>`;
-    } else {
-      tbody.innerHTML = recent5.map(r => {
-        const slotKor = r.slot === "AM" ? "오전" : "오후";
-        const dateShort = r.date.substring(5).replace("-", "/");
-        const stageColor = STAGE_COLORS[r.stage] || "#94a3b8";
-        return `<tr>
-          <td>${dateShort} <span style="color:var(--text-muted);font-size:10px;">${slotKor}</span></td>
-          <td style="font-weight:600;">${_dashTruncate(r.location, 12)}</td>
-          <td style="font-weight:700;font-variant-numeric:tabular-nums;">${(r.perceived||0).toFixed(1)}℃</td>
-          <td><span class="dash-table-stage" style="background:${stageColor};">${r.stage}</span></td>
-        </tr>`;
-      }).join("");
-    }
-  }
-
-  // ── (d) 하단 우: 단계별 도넛 차트 ──
-  const stageDist = {};
-  STAGE_ORDER.forEach(s => stageDist[s] = 0);
-  weekRecs.forEach(r => {
-    if (stageDist.hasOwnProperty(r.stage)) stageDist[r.stage]++;
-  });
-  if (hasChart) _renderDonutChart(stageDist);
-
-  // ── (e) 미제출 누락 경보 리스트 ──
-  _renderMissingList(weekAgo, today);
+  // [수정 v3] 하단 좌: 체감기록 대장 + 우: 자율점검 이력 렌더링
+  _renderDashTempList();
+  _renderDashCheckList();
 }
 
 // 시계 시작 (1초 간격)
@@ -1497,89 +1406,155 @@ function _renderLineChart(labels, data, pointColors) {
   });
 }
 
-function _renderDonutChart(stageDist) {
-  const ctx = document.getElementById("chart-donut-stage");
-  if (!ctx) return;
-  if (_dashDonutChart) _dashDonutChart.destroy();
-  const labels = STAGE_ORDER;
-  const data = labels.map(s => stageDist[s] || 0);
-  const colors = labels.map(s => STAGE_COLORS[s]);
-  const total = data.reduce((s, v) => s + v, 0);
-  _dashDonutChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: labels,
-      datasets: [{
-        data: total === 0 ? [1,0,0,0,0] : data,  // 데이터 없으면 회색 도넛 표시
-        backgroundColor: total === 0 ? ["#e2e8f0","#e2e8f0","#e2e8f0","#e2e8f0","#e2e8f0"] : colors,
-        borderWidth: 2,
-        borderColor: "#fff"
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "62%",
-      plugins: {
-        legend: {
-          position: "right",
-          labels: { font: { size: 11 }, boxWidth: 10, padding: 6 }
-        },
-        tooltip: {
-          enabled: total > 0,
-          callbacks: {
-            label: (item) => `${item.label}: ${item.parsed}건`
-          }
-        }
-      }
-    }
-  });
-}
-
-// ─── 미제출 슬롯 계산 ───
-function _dashCountMissingSlots(startYmd, endYmd) {
-  // 각 날짜의 AM/PM 슬롯 중 tempDb에 없는 슬롯을 카운트
-  let missing = 0;
-  const start = _dashYmdToDate(startYmd);
-  const end = _dashYmdToDate(endYmd);
-  for (let t = start.getTime(); t <= end.getTime(); t += 86400000) {
-    const ymd = _dashYmd(new Date(t));
-    const dayRecs = tempDb.filter(r => r.date === ymd);
-    const hasAM = dayRecs.some(r => r.slot === "AM");
-    const hasPM = dayRecs.some(r => r.slot === "PM");
-    if (!hasAM) missing++;
-    if (!hasPM) missing++;
-  }
-  return missing;
-}
-
-function _renderMissingList(startYmd, endYmd) {
-  const box = document.getElementById("dash-missing-list");
+// =========================================================================
+// [수정 v3] 대시보드 보관소 (체감기록 대장 + 자율점검 이력) 렌더링 + 액션
+// =========================================================================
+function _renderDashTempList() {
+  const box = document.getElementById("dash-temp-list");
+  const countEl = document.getElementById("dash-temp-count");
   if (!box) return;
-  const items = [];
-  const start = _dashYmdToDate(startYmd);
-  const end = _dashYmdToDate(endYmd);
-  for (let t = end.getTime(); t >= start.getTime(); t -= 86400000) {
-    const d = new Date(t);
-    const ymd = _dashYmd(d);
-    const dateLabel = (d.getMonth()+1) + "/" + d.getDate();
-    const dayRecs = tempDb.filter(r => r.date === ymd);
-    const hasAM = dayRecs.some(r => r.slot === "AM");
-    const hasPM = dayRecs.some(r => r.slot === "PM");
-    if (!hasAM) items.push({ date: dateLabel, slot: "오전 10시 미제출" });
-    if (!hasPM) items.push({ date: dateLabel, slot: "오후 2시 미제출" });
+
+  _setText("dash-temp-count", tempDb.length + "건");
+
+  if (tempDb.length === 0) {
+    box.innerHTML = `<div class="dash-empty">체감기록이 아직 없습니다.</div>`;
+    _wireDashAllCheck("dash-chk-temp-all", "dash-chk-temp");
+    return;
   }
-  _setText("missing-card-count", items.length + "건");
-  if (items.length === 0) {
-    box.innerHTML = `<div class="dash-empty" style="font-size:11px;padding:14px;">✓ 최근 7일 모든 측정 완료</div>`;
-  } else {
-    box.innerHTML = items.slice(0, 10).map(it =>
-      `<div class="dash-missing-item">
-        <span class="miss-date">${it.date}</span>
-        <span class="miss-slot">${it.slot}</span>
-      </div>`
-    ).join("");
+
+  // 최신순 그대로 (이미 loadFromSheets에서 정렬됨)
+  box.innerHTML = tempDb.map(r => {
+    const slotKor = r.slot === "AM" ? "오전 10시" : "오후 2시";
+    const dateShort = r.date.substring(5).replace("-", ".");
+    const tempId = r.date + "_" + r.slot;
+    const badgeCls = r.stage === '정상' ? 'badge-normal'
+                   : r.stage === '관심' ? 'badge-interest'
+                   : r.stage === '주의' ? 'badge-attention'
+                   : r.stage === '경고' ? 'badge-warning'
+                   : 'badge-danger';
+    return `
+      <div class="dash-arc-item">
+        <input type="checkbox" class="dash-chk-temp" data-id="${tempId}">
+        <div class="dash-arc-item-body">
+          <div class="dash-arc-item-title">${dateShort} (${slotKor}) · ${_dashTruncate(r.location, 14)}</div>
+          <div class="dash-arc-item-sub">${(r.temp||0).toFixed(1)}℃ / ${r.humidity}% · 체감 ${(r.perceived||0).toFixed(1)}℃</div>
+        </div>
+        <div class="dash-arc-item-actions">
+          <span class="badge ${badgeCls}">${r.stage}</span>
+          <button class="dash-arc-btn-print" onclick="dashPrintSingleTemp('${tempId}')">
+            <i class="fa-solid fa-file-pdf"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  _wireDashAllCheck("dash-chk-temp-all", "dash-chk-temp");
+}
+
+function _renderDashCheckList() {
+  const box = document.getElementById("dash-check-list");
+  if (!box) return;
+
+  _setText("dash-check-count", checklistDb.length + "건");
+
+  if (checklistDb.length === 0) {
+    box.innerHTML = `<div class="dash-empty">자율점검 이력이 아직 없습니다.</div>`;
+    _wireDashAllCheck("dash-chk-check-all", "dash-chk-check");
+    return;
   }
+
+  box.innerHTML = checklistDb.map(r => {
+    // 점검 항목 중 "개선필요" 카운트
+    const fields = ["water_supply","shade_cooling","shade_minimize","rest_facility","rest_31","rest_33","cooling_gear","emergency_unconscious","emergency_conscious","other_thermometer","other_education","other_record","other_sensitive"];
+    const needCount = fields.filter(f => r[f] === "개선필요").length;
+    const stateLabel = needCount === 0
+      ? `<span class="badge badge-normal">정상 (전 항목 적정)</span>`
+      : `<span class="badge badge-warning">개선필요 ${needCount}건</span>`;
+    return `
+      <div class="dash-arc-item">
+        <input type="checkbox" class="dash-chk-check" data-id="${r.id}">
+        <div class="dash-arc-item-body">
+          <div class="dash-arc-item-title">${r.date} · 주간 자율점검표</div>
+          <div class="dash-arc-item-sub">${_dashTruncate(r.remarks || "보완사항 없음", 28)}</div>
+        </div>
+        <div class="dash-arc-item-actions">
+          ${stateLabel}
+          <button class="dash-arc-btn-print" onclick="dashPrintSingleCheck('${r.id}')">
+            <i class="fa-solid fa-file-pdf"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  _wireDashAllCheck("dash-chk-check-all", "dash-chk-check");
+}
+
+// 전체선택 체크박스 바인딩
+function _wireDashAllCheck(allId, itemClass) {
+  const allChk = document.getElementById(allId);
+  if (!allChk) return;
+  allChk.onchange = () => {
+    document.querySelectorAll("." + itemClass).forEach(c => c.checked = allChk.checked);
+  };
+  allChk.checked = false;
+}
+
+// ── 대시보드 선택삭제/출력 액션 — 모바일 기존 함수 재활용 ──
+function dashDeleteSelectedTemp() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-temp:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("삭제할 체감기록을 선택해주세요."); return; }
+  // 모바일 보관소의 체크박스를 동일 ID로 일시 체크해두고, 기존 영구삭제 함수 호출
+  document.querySelectorAll(".chk-temp-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  deleteSelectedTempRecords();
+}
+
+function dashDeleteSelectedCheck() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-check:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("삭제할 자율점검표를 선택해주세요."); return; }
+  document.querySelectorAll(".chk-check-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  deleteSelectedChecklists();
+}
+
+function dashPrintSelectedTemp() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-temp:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("출력할 체감기록을 선택해주세요."); return; }
+  document.querySelectorAll(".chk-temp-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  printSelectedTempRecords();
+}
+
+function dashPrintSelectedCheck() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-check:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("출력할 자율점검표를 선택해주세요."); return; }
+  document.querySelectorAll(".chk-check-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  printSelectedChecklists();
+}
+
+function dashPrintSingleTemp(tempId) {
+  document.querySelectorAll(".chk-temp-print").forEach(c => c.checked = false);
+  const target = document.querySelector(`.chk-temp-print[data-id="${tempId}"]`);
+  if (target) target.checked = true;
+  printSelectedTempRecords();
+}
+
+function dashPrintSingleCheck(checkId) {
+  document.querySelectorAll(".chk-check-print").forEach(c => c.checked = false);
+  const target = document.querySelector(`.chk-check-print[data-id="${checkId}"]`);
+  if (target) target.checked = true;
+  printSelectedChecklists();
 }
 
 // ─── 공용 유틸 ───
