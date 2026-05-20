@@ -193,10 +193,17 @@ function initNavigation() {
       const targetScreen = item.getAttribute("data-screen");
       document.getElementById(targetScreen).classList.add("active");
       
-      // 보관소 탭으로 왔을 경우 리스트 리렌더링
+       // 보관소 탭으로 왔을 경우 리스트 리렌더링
       if (targetScreen === "screen-archive") {
         renderArchive();
         updateMissingRecordsWidget();
+      }
+      // [수정] TBM 화면 진입 시 9개 항목 비어있으면 재렌더링 (캐시/타이밍 방어)
+      if (targetScreen === "screen-tbm") {
+        const tbmBox = document.getElementById("tbm-items-container");
+        if (tbmBox && tbmBox.children.length === 0 && typeof initTbmScreen === "function") {
+          initTbmScreen();
+        }
       }
     });
   });
