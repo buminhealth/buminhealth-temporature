@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -65,12 +64,12 @@
             <div class="kpi-sub">건 (이번 주)</div>
           </div>
         </div>
-        <div class="dash-kpi card-danger">
-          <div class="kpi-icon"><i class="fa-solid fa-bell"></i></div>
+        <div class="dash-kpi card-normal">
+          <div class="kpi-icon"><i class="fa-solid fa-clipboard-list"></i></div>
           <div class="kpi-body">
-            <div class="kpi-label">미제출 경보</div>
-            <div class="kpi-value" id="kpi-missing-count">0</div>
-            <div class="kpi-sub">슬롯 (최근 7일)</div>
+            <div class="kpi-label">자율점검</div>
+            <div class="kpi-value" id="kpi-checklist-count">0</div>
+            <div class="kpi-sub">건 (이번 주)</div>
           </div>
         </div>
       </div>
@@ -86,62 +85,64 @@
         </div>
       </div>
 
-      <!-- (d) 하단 그리드: 좌(테이블) / 우(도넛) -->
+      <!-- (d) 하단 그리드: 좌(체감기록 대장) / 우(자율점검 이력) -->
       <div class="dash-bottom-grid">
-        <!-- 최근 측정 5건 테이블 -->
-        <div class="dash-card">
+        <!-- 체감기록 대장 -->
+        <div class="dash-card dash-archive-card">
           <div class="dash-card-header">
-            <h4><i class="fa-solid fa-list-ul"></i> 최근 측정 5건</h4>
-            <span class="dash-card-tag" id="table-recent-count">0건</span>
+            <h4><i class="fa-regular fa-calendar-check"></i> 체감기록 대장</h4>
+            <span class="dash-card-tag" id="dash-temp-count">0건</span>
           </div>
-          <div class="dash-table-box">
-            <table class="dash-table">
-              <thead>
-                <tr>
-                  <th>일시</th>
-                  <th>측정장소</th>
-                  <th>체감</th>
-                  <th>단계</th>
-                </tr>
-              </thead>
-              <tbody id="dash-recent-tbody">
-                <tr><td colspan="4" class="dash-empty">데이터 불러오는 중…</td></tr>
-              </tbody>
-            </table>
+          <div class="dash-archive-actionbar">
+            <label class="dash-action-all">
+              <input type="checkbox" id="dash-chk-temp-all"> 전체 선택
+            </label>
+            <div class="dash-action-buttons">
+              <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedTemp()">
+                <i class="fa-solid fa-file-pdf"></i> 출력
+              </button>
+              <button class="dash-act-btn dash-act-delete" onclick="dashDeleteSelectedTemp()">
+                <i class="fa-solid fa-trash"></i> 삭제
+              </button>
+            </div>
+          </div>
+          <div class="dash-archive-list" id="dash-temp-list">
+            <div class="dash-empty">데이터 불러오는 중…</div>
           </div>
         </div>
 
-        <!-- 단계별 분포 도넛 -->
-        <div class="dash-card">
+        <!-- 자율점검 이력 -->
+        <div class="dash-card dash-archive-card">
           <div class="dash-card-header">
-            <h4><i class="fa-solid fa-chart-pie"></i> 폭염 단계 분포</h4>
-            <span class="dash-card-tag">이번 주</span>
+            <h4><i class="fa-solid fa-file-shield"></i> 자율점검 이력</h4>
+            <span class="dash-card-tag" id="dash-check-count">0건</span>
           </div>
-          <div class="dash-chart-box donut">
-            <canvas id="chart-donut-stage"></canvas>
+          <div class="dash-archive-actionbar">
+            <label class="dash-action-all">
+              <input type="checkbox" id="dash-chk-check-all"> 전체 선택
+            </label>
+            <div class="dash-action-buttons">
+              <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedCheck()">
+                <i class="fa-solid fa-file-pdf"></i> 출력
+              </button>
+              <button class="dash-act-btn dash-act-delete" onclick="dashDeleteSelectedCheck()">
+                <i class="fa-solid fa-trash"></i> 삭제
+              </button>
+            </div>
+          </div>
+          <div class="dash-archive-list" id="dash-check-list">
+            <div class="dash-empty">데이터 불러오는 중…</div>
           </div>
         </div>
       </div>
 
-      <!-- (e) QR 카드 + 시스템 상태 (기존 자산 보존) -->
-      <div class="dash-bottom-grid">
-        <div class="qr-container-card dash-card">
-          <div class="qr-title"><i class="fa-solid fa-qrcode"></i> 모바일 간편 접속</div>
-          <div class="qr-box" id="qr-code-display">
-            <!-- JS에서 동적으로 고해상도 QR API 이미지 삽입 -->
-          </div>
-          <div class="qr-url" id="live-url-text">http://localhost:8080</div>
+      <!-- (e) QR 카드 (모바일 접속 안내) -->
+      <div class="qr-container-card dash-card dash-qr-full">
+        <div class="qr-title"><i class="fa-solid fa-qrcode"></i> 모바일 간편 접속</div>
+        <div class="qr-box" id="qr-code-display">
+          <!-- JS에서 동적으로 고해상도 QR API 이미지 삽입 -->
         </div>
-
-        <div class="dash-card dash-missing-card">
-          <div class="dash-card-header">
-            <h4><i class="fa-solid fa-bell"></i> 미제출 누락 경보</h4>
-            <span class="dash-card-tag" id="missing-card-count">0건</span>
-          </div>
-          <div class="dash-missing-list" id="dash-missing-list">
-            <div class="dash-empty">최근 7일 미제출 슬롯 확인 중…</div>
-          </div>
-        </div>
+        <div class="qr-url" id="live-url-text">http://localhost:8080</div>
       </div>
     </section>
 
@@ -454,18 +455,7 @@
             <div class="app-screen" id="screen-archive">
               <div class="screen-intro" style="margin-bottom: 12px;">
                 <h3>🗄️ 기록 보관소</h3>
-                <p>전송된 기록을 날짜별로 보관하고, 누락 상태를 실시간 모니터링합니다.</p>
-              </div>
-
-              <!-- 누락 기록 경고 위젯 (핵심 요구사항) -->
-              <div class="missing-alerts-widget" id="missing-records-box">
-                <div class="widget-header">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  <span>체감기록지 미제출 누락 경보</span>
-                </div>
-                <div class="widget-list" id="missing-list-container">
-                  <!-- 미제출 데이터 자동 기입 -->
-                </div>
+                <p>전송된 기록을 날짜별로 보관합니다.</p>
               </div>
 
               <!-- 보관소 서브 탭 분류 -->
