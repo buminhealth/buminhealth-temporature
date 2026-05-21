@@ -543,13 +543,24 @@ function saveSignature() {
 }
 
 function openSignModal() {
-  // [수정] 모달을 먼저 active 시키고 → 다음 프레임에 리사이즈+클리어
-  // (모달이 hidden 상태일 때 캔버스 rect.width=0이 되어 클리어 실패하는 문제 해결)
+  // [수정] 이전 서명 데이터 완전 초기화
+  savedSignatureDataUrl = "";
+
+  // 모달 활성화
   document.getElementById("sign-pad-modal").classList.add("active");
+
+  // [수정] CSS transition 완료 + 캔버스 표시 보장 후 강제 리사이즈 (canvas.width 할당 = 자동 클리어)
   setTimeout(() => {
-    resizeSignatureCanvas();  // 캔버스 크기 dpr 기준 재설정
-    clearCanvas();            // 픽셀 버퍼 전체 강제 클리어
-  }, 30);
+    if (!canvas || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      canvas.width  = rect.width * dpr;   // ← canvas.width 할당 자체가 픽셀 버퍼 자동 클리어
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    clearCanvas();  // 추가 안전망: 변환 행렬 무시 강제 클리어
+  }, 150);  // 30ms → 150ms로 늘림 (CSS transition + 레이아웃 안정화 대기)
 }
 
 // =========================================================================
@@ -1627,7 +1638,7 @@ function _renderDashCheckList() {
         <input type="checkbox" class="dash-chk-check" data-id="${r.id}">
         <div class="dash-arc-item-body">
           <div class="dash-arc-item-title">${r.date} · 주간 자율점검표</div>
-          <div class="dash-arc-item-sub">${_dashTruncate(r.remarks || "보완사항 없음", 28)}</div>
+          ${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}
         </div>
         <div class="dash-arc-item-actions">
           ${stateLabel}
@@ -2019,7 +2030,7 @@ function _renderDashTbmList() {
         <input type="checkbox" class="dash-chk-tbm" data-id="${r.id}">
         <div class="dash-arc-item-body">
           <div class="dash-arc-item-title">${r.date} · TBM 자가진단</div>
-          <div class="dash-arc-item-sub">${_dashTruncate(r.remarks || (r.inspector + ' 작성'), 28)}</div>
+          ${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}
         </div>
         <div class="dash-arc-item-actions">
           <span class="badge ${badgeCls}">${badgeLbl}</span>
