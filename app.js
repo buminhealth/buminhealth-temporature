@@ -73,6 +73,7 @@ let canvas, ctx;
 let drawing = false;
 let lastX = 0, lastY = 0;
 let savedSignatureDataUrl = "";
+let signContext = "temp";  // [신규] 서명 컨텍스트: "temp" | "tbm" | "checklist"
 
 // =========================================================================
 // [초기 구동 리스너 및 렌더러 바인딩]
@@ -121,12 +122,18 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-slot-am").addEventListener("click", () => setSlot("AM"));
   document.getElementById("btn-slot-pm").addEventListener("click", () => setSlot("PM"));
   
-  document.getElementById("btn-open-sign-modal").addEventListener("click", openSignModal);
+  document.getElementById("btn-open-sign-modal").addEventListener("click", () => {
+    signContext = "temp";  // [신규] 체감기록 컨텍스트
+    openSignModal();
+  });
   document.getElementById("btn-close-sign").addEventListener("click", () => document.getElementById("sign-pad-modal").classList.remove("active"));
   document.getElementById("btn-close-viewer").addEventListener("click", () => document.getElementById("checklist-viewer-modal").classList.remove("active"));
   
   document.getElementById("btn-final-submit").addEventListener("click", submitRecordFinal);
-  document.getElementById("btn-submit-checklist").addEventListener("click", submitChecklist);
+  document.getElementById("btn-submit-checklist").addEventListener("click", () => {
+    signContext = "checklist";  // [신규] 자율점검 컨텍스트
+    openSignModal();
+  });
   
   // 보관소 검색 이벤트 바인딩
   document.getElementById("search-temp-date-start").addEventListener("change", renderArchive);
@@ -485,8 +492,20 @@ function clearCanvas() {
 function saveSignature() {
   // 캔버스 드로잉 데이터 PNG 파일(DataURL) 변환
   savedSignatureDataUrl = canvas.toDataURL();
-  
-  // 확인 결과 모달 정보 바인딩
+
+  // [신규] TBM/자율점검은 결과 확인 모달 거치지 않고 바로 제출
+  if (signContext === "tbm") {
+    document.getElementById("sign-pad-modal").classList.remove("active");
+    submitTbm();
+    return;
+  }
+  if (signContext === "checklist") {
+    document.getElementById("sign-pad-modal").classList.remove("active");
+    submitChecklist();
+    return;
+  }
+
+  // ↓ 기존 체감기록 로직 (결과 확인 모달 표시)
   const perceived = Math.round((currentTemp + 0.14 * (currentHumidity - 50)) * 10) / 10;
   let stage = "정상";
   if (perceived >= 38) stage = "위험";
@@ -654,7 +673,8 @@ function submitChecklist() {
     other_education,
     other_record,
     other_sensitive,
-    remarks: remarks
+    remarks: remarks,
+    signature: savedSignatureDataUrl  // [신규] 서명
   };
 
   const submitBtn = document.getElementById("btn-submit-checklist");
@@ -789,7 +809,8 @@ async function loadFromSheets() {
         other_education: pick(r, "그외_안전교육") || "적정",
         other_record: pick(r, "그외_기록보관") || "적정",
         other_sensitive: pick(r, "그외_민감군계획") || "적정",
-        remarks: pick(r, "특이사항") || ""
+        remarks: pick(r, "특이사항") || "",
+        signature: pick(r, "서명") || ""  // [신규] 서명
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
     console.log(`[로드:자율점검] 매핑 후 ${checklistDb.length}건`);
@@ -817,7 +838,8 @@ async function loadFromSheets() {
         q7: pick(r, "Q7_특별관리")    || "아니오",
         q8: pick(r, "Q8_물섭취서약")  || "예",
         q9: pick(r, "Q9_동료관찰서약")|| "예",
-        remarks: pick(r, "특이사항") || ""
+        remarks: pick(r, "특이사항") || "",
+        signature: pick(r, "서명") || ""  // [신규] 서명
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
     console.log(`[로드:TBM] 매핑 후 ${tbmDb.length}건`);
@@ -948,7 +970,7 @@ function renderArchive() {
         <span class="card-slot-chip">자율점검</span>
       </div>
       <div class="acc-mid">
-        <img class="acc-sign" src="${dummySignature}" alt="서명">
+        <img class="acc-sign" src="${row.signature || dummySignature}" alt="서명">
       </div>
       <div class="acc-right">
         <span class="badge ${badgeCls}">${overall}</span>
@@ -1727,9 +1749,12 @@ function initTbmScreen() {
     });
   });
 
-  // 제출 버튼
+  // 제출 버튼 → [신규] 서명 모달 먼저 오픈
   const submitBtn = document.getElementById("btn-submit-tbm");
-  if (submitBtn) submitBtn.addEventListener("click", submitTbm);
+  if (submitBtn) submitBtn.addEventListener("click", () => {
+    signContext = "tbm";  // [신규] TBM 컨텍스트
+    openSignModal();
+  });
 
   // 보관소 TBM 서브탭의 전체선택 / 출력 / 삭제 버튼
   const allChk = document.getElementById("chk-tbm-all");
@@ -1756,7 +1781,7 @@ function submitTbm() {
   }
 
   // 9개 항목 값 수집
-  const record = { date: dateStr, inspector: "보건관리자", remarks: remarks };
+  const record = { date: dateStr, inspector: "보건관리자", remarks: remarks, signature: savedSignatureDataUrl };
   TBM_QUESTIONS.forEach(q => {
     const row = document.querySelector(`#tbm-items-container .chk-item-row[data-key="${q.key}"]`);
     const active = row ? row.querySelector(".yn-btn.active") : null;
@@ -1837,7 +1862,7 @@ function renderTbmArchiveList() {
           <span class="card-slot-chip">TBM</span>
         </div>
         <div class="acc-mid">
-          <img class="acc-sign" src="${dummySignature}" alt="서명">
+          <img class="acc-sign" src="${r.signature || dummySignature}" alt="서명">
         </div>
         <div class="acc-right">
           <span class="badge ${badgeCls}">${overall}</span>
