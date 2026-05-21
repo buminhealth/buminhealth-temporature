@@ -42,6 +42,20 @@ const dummySignature = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/20
 // 2. 데이터베이스 (Google Sheets에서 비동기 로드 — DOMContentLoaded 시점에 loadFromSheets()로 채워짐)
 let tempDb = [];
 let checklistDb = [];
+let tbmDb = [];  // [TBM 패치] TBM 자가진단 기록
+
+// [TBM 패치] TBM 자가진단 9개 항목 — 사용자가 Google Sheets에 정의한 그대로
+const TBM_QUESTIONS = [
+  { key: "q1", category: "self",      label: "[컨디션]",       text: "현재 가벼운 두통, 어지러움, 속 울렁거림 또는 무력감이 있습니까?",                       riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q2", category: "self",      label: "[건강상태]",     text: "현재 감기 기운(오한, 발열)이 있거나, 혈압·당뇨·이뇨제 등의 약을 복용 중입니까?",       riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q3", category: "self",      label: "[개인요인]",     text: "전날 과음을 하였거나, 수면 부족으로 오늘 유독 피로감이 심합니까?",                     riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q4", category: "self",      label: "[현장적응]",     text: "우리 현장에 신규 배치되었거나, 고온 환경 작업이 오랜만(또는 처음)입니까?",             riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q5", category: "observe",   label: "[외관 관찰]",    text: "얼굴이 유독 창백하거나 붉은 사람, 숨을 거칠게 쉬는 사람이 있는가?",                   riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q6", category: "observe",   label: "[행동 관찰]",    text: "대답이 눈에 띄게 굼뜨거나, 걸음걸이가 비틀거리는 사람이 있는가?",                     riskOnYes: true,  defaultVal: "아니오" },
+  { key: "q7", category: "designate", label: "[특별관리대상]", text: "오늘 작업조에 민감군(고령자/유소견자/신규자 등) 지정 대상자가 있습니까?",            riskOnYes: false, defaultVal: "아니오" },
+  { key: "q8", category: "pledge",    label: "[물 섭취 규칙]", text: "매 15~20분마다 시원한 물을 규칙적으로 마시겠습니다.",                                riskOnYes: false, defaultVal: "예" },
+  { key: "q9", category: "pledge",    label: "[동료 관찰]",    text: "작업 중 옆 동료가 횡설수설하거나 비틀거리면 즉시 작업을 멈추고 관리자에게 알리겠습니다.", riskOnYes: false, defaultVal: "예" }
+];
 
 // 이메일 수신 데이터베이스
 let emailDb = [];
@@ -71,6 +85,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const dateStr = `${y}-${m}-${d}`;
   document.getElementById("m-input-record-date").value = dateStr;
   document.getElementById("m-input-checklist-date").value = dateStr;
+  // [TBM 패치] TBM 날짜 초기값 + 9개 항목 동적 생성
+  const tbmDateEl = document.getElementById("m-input-tbm-date");
+  if (tbmDateEl) tbmDateEl.value = dateStr;
+  initTbmScreen();
 
   initClock();
   initQRGenerator();
@@ -193,7 +211,7 @@ function initNavigation() {
       const targetScreen = item.getAttribute("data-screen");
       document.getElementById(targetScreen).classList.add("active");
       
-       // 보관소 탭으로 왔을 경우 리스트 리렌더링
+      // 보관소 탭으로 왔을 경우 리스트 리렌더링
       if (targetScreen === "screen-archive") {
         renderArchive();
         updateMissingRecordsWidget();
@@ -700,9 +718,11 @@ function updateMissingRecordsWidget() {
 // =========================================================================
 async function loadFromSheets() {
   try {
-    const [tempRes, chkRes] = await Promise.all([
+    // [TBM 패치] 3개 시트 병렬 로드
+    const [tempRes, chkRes, tbmRes] = await Promise.all([
       gasCall({ action: "list", target: "temp" }),
-      gasCall({ action: "list", target: "checklist" })
+      gasCall({ action: "list", target: "checklist" }),
+      gasCall({ action: "list", target: "tbm" })
     ]);
 
     if (tempRes && tempRes.ok && Array.isArray(tempRes.records)) {
@@ -745,6 +765,28 @@ async function loadFromSheets() {
           other_education: r["그외_안전교육"] || "적정",
           other_record: r["그외_기록보관"] || "적정",
           other_sensitive: r["그외_민감군계획"] || "적정",
+          remarks: r["특이사항"] || ""
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    // [TBM 패치] TBM 데이터 매핑
+    if (tbmRes && tbmRes.ok && Array.isArray(tbmRes.records)) {
+      tbmDb = tbmRes.records
+        .filter(r => r["ID"])
+        .map(r => ({
+          id: String(r["ID"]),
+          date: _formatDateOnly(r["작성일시"]),
+          inspector: r["작성자"] || "보건관리자",
+          q1: r["Q1_컨디션"]      || "아니오",
+          q2: r["Q2_건강상태"]    || "아니오",
+          q3: r["Q3_개인요인"]    || "아니오",
+          q4: r["Q4_현장적응"]    || "아니오",
+          q5: r["Q5_외관관찰"]    || "아니오",
+          q6: r["Q6_행동관찰"]    || "아니오",
+          q7: r["Q7_특별관리"]    || "아니오",
+          q8: r["Q8_물섭취서약"]  || "예",
+          q9: r["Q9_동료관찰서약"]|| "예",
           remarks: r["특이사항"] || ""
         }))
         .sort((a, b) => b.date.localeCompare(a.date));
@@ -901,6 +943,8 @@ function renderArchive() {
   });
 
   // [PC 대시보드 패치] 보관소 갱신될 때마다 대시보드도 동기화 (모바일에선 숨김 상태라 무해)
+  // [TBM 패치] TBM 모바일 보관소 리스트 렌더링도 함께
+  renderTbmArchiveList();
   if (typeof renderDashboard === "function") renderDashboard();
 }
 
@@ -1299,13 +1343,13 @@ function renderDashboard() {
   const weekRecs   = tempDb.filter(r => r.date >= weekAgo && r.date <= today);
   const attentionUp = weekRecs.filter(r => ["주의","경고","위험"].includes(r.stage)).length;
   const warningUp   = weekRecs.filter(r => ["경고","위험"].includes(r.stage)).length;
-  // [수정 v3] 미제출 슬롯 → 이번 주 자율점검 건수로 교체
-  const weekChecks = checklistDb.filter(r => r.date >= weekAgo && r.date <= today).length;
+  // [TBM 패치] 4번째 KPI를 "오늘 TBM 건수"로 교체
+  const todayTbm = tbmDb.filter(r => r.date === today).length;
 
   _setText("kpi-today-count",      todayCount);
   _setText("kpi-attention-count",  attentionUp);
   _setText("kpi-warning-count",    warningUp);
-  _setText("kpi-checklist-count",  weekChecks);
+  _setText("kpi-tbm-count",        todayTbm);
 
   // ── (c) 라인 차트: 최근 7일 일별 평균 체감온도 ──
   const lineLabels = [];
@@ -1329,8 +1373,9 @@ function renderDashboard() {
   _setText("chart-line-period", lineLabels[0] + " ~ " + lineLabels[lineLabels.length-1]);
   if (hasChart) _renderLineChart(lineLabels, lineData, linePointColors);
 
-  // [수정 v3] 하단 좌: 체감기록 대장 + 우: 자율점검 이력 렌더링
+  // [수정 v3 + TBM 패치] 하단 좌: 체감기록 / 중: TBM / 우: 자율점검
   _renderDashTempList();
+  _renderDashTbmList();
   _renderDashCheckList();
 }
 
@@ -1589,4 +1634,341 @@ function _dashTruncate(s, n) {
 function _setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
+}
+
+
+// =========================================================================
+// [TBM 패치] TBM 자가진단 체크리스트 — 작성 화면 + 제출 + 보관소 + 출력/삭제
+// =========================================================================
+
+// TBM 작성 화면 초기 세팅 (토글/제출/보관소 액션 바인딩) — 9개 항목은 HTML에 정적으로 박혀 있음
+function initTbmScreen() {
+  const container = document.getElementById("tbm-items-container");
+  if (!container) return;
+
+  // [핵심 수정] HTML에 9개 항목이 이미 정적으로 박혀 있으므로 innerHTML 동적 생성 제거.
+  // 자율점검표와 동일한 패턴으로, 정적 HTML의 .yn-btn에 토글 동작만 바인딩.
+
+  // 토글 동작 바인딩 (자율점검과 같은 패턴)
+  container.querySelectorAll(".chk-item-row").forEach(row => {
+    row.querySelectorAll(".yn-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        row.querySelectorAll(".yn-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+  });
+
+  // 제출 버튼
+  const submitBtn = document.getElementById("btn-submit-tbm");
+  if (submitBtn) submitBtn.addEventListener("click", submitTbm);
+
+  // 보관소 TBM 서브탭의 전체선택 / 출력 / 삭제 버튼
+  const allChk = document.getElementById("chk-tbm-all");
+  if (allChk) {
+    allChk.addEventListener("change", () => {
+      document.querySelectorAll(".chk-tbm-print").forEach(c => c.checked = allChk.checked);
+    });
+  }
+  const btnPrint = document.getElementById("btn-print-selected-tbm");
+  if (btnPrint) btnPrint.addEventListener("click", printSelectedTbm);
+  const btnDelete = document.getElementById("btn-delete-selected-tbm");
+  if (btnDelete) btnDelete.addEventListener("click", deleteSelectedTbm);
+}
+
+// TBM 제출 — Google Sheets에 영구 저장
+function submitTbm() {
+  const submitBtn = document.getElementById("btn-submit-tbm");
+  const dateStr = document.getElementById("m-input-tbm-date").value;
+  const remarks = document.getElementById("tbm-input-remarks").value || "";
+
+  if (!dateStr) {
+    alert("작성 날짜를 선택해주세요.");
+    return;
+  }
+
+  // 9개 항목 값 수집
+  const record = { date: dateStr, inspector: "보건관리자", remarks: remarks };
+  TBM_QUESTIONS.forEach(q => {
+    const row = document.querySelector(`#tbm-items-container .chk-item-row[data-key="${q.key}"]`);
+    const active = row ? row.querySelector(".yn-btn.active") : null;
+    record[q.key] = active ? active.getAttribute("data-val") : q.defaultVal;
+  });
+
+  // 위험 신호 (1~6번 중 "예") + 서약 미이행 (8~9번 중 "아니오") 카운트 → 경고
+  const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && record[q.key] === "예").length;
+  const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && record[q.key] === "아니오").length;
+
+  if (riskHits >= 2) {
+    if (!confirm(`⚠️ 위험 신호 ${riskHits}건 감지됨\n그래도 제출하시겠습니까?\n(저장 후 안전관리자에게 즉시 보고를 권장합니다)`)) return;
+  }
+  if (pledgeMiss > 0) {
+    if (!confirm(`⚠️ 안전수칙 서약 미이행 ${pledgeMiss}건\n그래도 제출하시겠습니까?`)) return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 구글 시트 저장 중...`;
+
+  setTimeout(async () => {
+    try {
+      const res = await gasCall({ action: "create", target: "tbm", record: record });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+      if (res.id) record.id = res.id;
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<i class="fa-solid fa-users-gear"></i> TBM 자가진단 제출`;
+      alert("⚠️ 구글 시트 저장 실패\n" + err.message);
+      return;
+    }
+
+    tbmDb.unshift(record);
+
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `<i class="fa-solid fa-users-gear"></i> TBM 자가진단 제출`;
+
+    // 보관소 TBM 서브탭으로 이동
+    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
+    document.querySelector(".nav-item[data-screen='screen-archive']").classList.add("active");
+    document.getElementById("screen-archive").classList.add("active");
+
+    document.querySelectorAll(".archive-sub-tabs .sub-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".archive-sub-pane").forEach(p => p.classList.remove("active"));
+    const tbmTabBtn = document.querySelector(".sub-tab-btn[data-sub='sub-tbm']");
+    const tbmPane = document.getElementById("sub-tbm");
+    if (tbmTabBtn) tbmTabBtn.classList.add("active");
+    if (tbmPane) tbmPane.classList.add("active");
+
+    renderArchive();
+
+    alert(`[TBM 완료] ${dateStr} 작업 전 안전점검이 DB에 등록되었습니다.${riskHits > 0 ? `\n⚠️ 위험 신호 ${riskHits}건 — 관리자 보고 권장` : ''}`);
+  }, 600);
+}
+
+// TBM 보관소 리스트 렌더링 (모바일 보관소의 sub-tbm 페인)
+function renderTbmArchiveList() {
+  const box = document.getElementById("archive-tbm-list");
+  if (!box) return;
+
+  if (tbmDb.length === 0) {
+    box.innerHTML = `<div style="padding: 30px 0; text-align: center; color: var(--text-muted); font-size: 13px;">TBM 자가진단 기록이 아직 없습니다.</div>`;
+    return;
+  }
+
+  box.innerHTML = tbmDb.map(r => {
+    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length;
+    const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
+    const overall = riskHits >= 2 ? '위험 신호 다수'
+                  : riskHits >= 1 ? '위험 신호 있음'
+                  : pledgeMiss > 0 ? '서약 미이행 있음'
+                  : '정상';
+    const badgeCls = riskHits >= 2 ? 'badge-danger'
+                   : riskHits >= 1 ? 'badge-warning'
+                   : pledgeMiss > 0 ? 'badge-attention'
+                   : 'badge-normal';
+
+    // 항목별 결과 요약 (예: Q1예/Q2아니오...)
+    const detailHtml = TBM_QUESTIONS.map(q => {
+      const val = r[q.key];
+      const isAbnormal = (q.riskOnYes && val === "예") || (q.category === "pledge" && val === "아니오");
+      const cls = isAbnormal ? 'tbm-item-flag' : 'tbm-item-ok';
+      return `<span class="${cls}">${q.label.replace(/[\[\]]/g, '')}: ${val}</span>`;
+    }).join("");
+
+    return `
+      <div class="archive-card temp-card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <input type="checkbox" class="chk-tbm-print" data-id="${r.id}">
+            <div>
+              <div class="card-date">${r.date} <span class="card-slot-chip">TBM</span></div>
+              <div class="card-loc">${r.inspector || '보건관리자'} · 작업 전 자가진단</div>
+            </div>
+          </div>
+          <div class="card-header-right">
+            <span class="badge ${badgeCls}">${overall}</span>
+            <button class="btn-print-temp" data-id="${r.id}" onclick="printSingleTbm('${r.id}')">
+              <i class="fa-solid fa-file-pdf"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="tbm-items-summary">${detailHtml}</div>
+          ${r.remarks ? `<div class="tbm-remarks">📝 ${r.remarks}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// TBM 영구 삭제 (체크된 항목)
+function deleteSelectedTbm() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-tbm-print:checked"))
+    .map(chk => chk.getAttribute("data-id"));
+
+  if (selectedIds.length === 0) {
+    alert("삭제할 TBM 기록을 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 TBM 기록 ${selectedIds.length}건을 영구 삭제하시겠습니까?\n구글 시트에서도 함께 삭제되며 복구가 불가능합니다.`)) {
+    return;
+  }
+
+  (async () => {
+    try {
+      const res = await gasCall({ action: "delete", target: "tbm", ids: selectedIds });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+    } catch (err) {
+      alert("⚠️ 구글 시트 삭제 실패\n" + err.message);
+      return;
+    }
+
+    tbmDb = tbmDb.filter(r => !selectedIds.includes(r.id.toString()));
+
+    const allChk = document.getElementById("chk-tbm-all");
+    if (allChk) allChk.checked = false;
+    renderArchive();
+
+    alert(`${selectedIds.length}건의 TBM 기록이 영구 삭제되었습니다.`);
+  })();
+}
+
+// TBM 선택 출력 (PDF 인쇄)
+function printSelectedTbm() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-tbm-print:checked"))
+    .map(chk => chk.getAttribute("data-id"));
+  if (selectedIds.length === 0) {
+    alert("출력할 TBM 기록을 선택해주세요.");
+    return;
+  }
+  _buildTbmPrintAndPrint(selectedIds);
+}
+
+function printSingleTbm(tbmId) {
+  _buildTbmPrintAndPrint([tbmId]);
+}
+
+function _buildTbmPrintAndPrint(ids) {
+  const records = tbmDb.filter(r => ids.includes(r.id.toString()));
+  if (records.length === 0) return;
+
+  const html = records.map(r => {
+    const rows = TBM_QUESTIONS.map(q => {
+      const val = r[q.key];
+      const isAbnormal = (q.riskOnYes && val === "예") || (q.category === "pledge" && val === "아니오");
+      return `<tr>
+        <td style="text-align:center;font-weight:600;">${q.key.toUpperCase()}</td>
+        <td><strong>${q.label}</strong> ${q.text}</td>
+        <td style="text-align:center;font-weight:800;color:${isAbnormal ? '#dc2626' : '#0f172a'};">${val}</td>
+      </tr>`;
+    }).join("");
+
+    return `
+      <div class="print-page">
+        <h1 style="text-align:center;margin:0 0 6px 0;font-size:18px;">TBM (Tool Box Meeting) 자가진단 체크리스트</h1>
+        <p style="text-align:center;margin:0 0 14px 0;font-size:11px;color:#64748b;">작업 전 안전회의 — 부민병원그룹</p>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px;">
+          <tr>
+            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:100px;border:1px solid #cbd5e1;">작성일</td>
+            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.date}</td>
+            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:80px;border:1px solid #cbd5e1;">작성자</td>
+            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.inspector || '보건관리자'}</td>
+          </tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="background:#0891b2;color:white;">
+              <th style="padding:8px;border:1px solid #cbd5e1;width:50px;">No.</th>
+              <th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">자가진단 항목</th>
+              <th style="padding:8px;border:1px solid #cbd5e1;width:70px;">결과</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${r.remarks ? `<div style="margin-top:12px;padding:10px;border:1px dashed #cbd5e1;font-size:11px;"><strong>특이사항:</strong> ${r.remarks}</div>` : ''}
+        <div style="margin-top:30px;text-align:right;font-size:10px;color:#64748b;">출력일시: ${new Date().toLocaleString('ko-KR')}</div>
+      </div>
+    `;
+  }).join('<div style="page-break-after: always;"></div>');
+
+  const w = window.open("", "TBM_PRINT", "width=900,height=1200");
+  w.document.write(`
+    <!doctype html><html><head><meta charset="utf-8"><title>TBM 자가진단 출력</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: 'Pretendard', sans-serif; color: #0f172a; padding: 0; margin: 0; }
+      td, th { border: 1px solid #cbd5e1; }
+      .print-page { padding: 0; }
+    </style>
+    </head><body>${html}<script>window.onload=()=>{window.print();}</script></body></html>
+  `);
+  w.document.close();
+}
+
+// =========================================================================
+// [TBM 패치] 대시보드 TBM 카드 렌더링 + 액션
+// =========================================================================
+function _renderDashTbmList() {
+  const box = document.getElementById("dash-tbm-list");
+  if (!box) return;
+
+  _setText("dash-tbm-count", tbmDb.length + "건");
+
+  if (tbmDb.length === 0) {
+    box.innerHTML = `<div class="dash-empty">TBM 기록이 아직 없습니다.</div>`;
+    _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
+    return;
+  }
+
+  box.innerHTML = tbmDb.map(r => {
+    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length;
+    const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
+    const badgeCls = riskHits >= 2 ? 'badge-danger'
+                   : riskHits >= 1 ? 'badge-warning'
+                   : pledgeMiss > 0 ? 'badge-attention'
+                   : 'badge-normal';
+    const badgeLbl = riskHits >= 1 ? `위험 ${riskHits}건`
+                   : pledgeMiss > 0 ? `미이행 ${pledgeMiss}건`
+                   : '정상';
+    return `
+      <div class="dash-arc-item">
+        <input type="checkbox" class="dash-chk-tbm" data-id="${r.id}">
+        <div class="dash-arc-item-body">
+          <div class="dash-arc-item-title">${r.date} · TBM 자가진단</div>
+          <div class="dash-arc-item-sub">${_dashTruncate(r.remarks || (r.inspector + ' 작성'), 28)}</div>
+        </div>
+        <div class="dash-arc-item-actions">
+          <span class="badge ${badgeCls}">${badgeLbl}</span>
+          <button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')">
+            <i class="fa-solid fa-file-pdf"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
+}
+
+function dashDeleteSelectedTbm() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("삭제할 TBM 기록을 선택해주세요."); return; }
+  document.querySelectorAll(".chk-tbm-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  deleteSelectedTbm();
+}
+
+function dashPrintSelectedTbm() {
+  const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked"))
+    .map(c => c.getAttribute("data-id"));
+  if (ids.length === 0) { alert("출력할 TBM 기록을 선택해주세요."); return; }
+  printSelectedTbm.call(null, ids);
+  // ↑ printSelectedTbm은 DOM 체크박스 기반이므로, 일시적으로 모바일 체크박스에 반영 후 호출
+  document.querySelectorAll(".chk-tbm-print").forEach(c => {
+    c.checked = ids.includes(c.getAttribute("data-id"));
+  });
+  printSelectedTbm();
 }
