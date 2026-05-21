@@ -1669,6 +1669,79 @@ body {
   padding: 1px 4px;
   background: #fff;
 }
+
+/* [신규] 한 줄 컴팩트 카드 (TBM/자율점검 보관소 카드) */
+.archive-card-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #ffffff;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.archive-card-compact:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-color: var(--color-info);
+}
+.acc-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.acc-left input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.acc-date {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.acc-mid {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0 6px;
+}
+.acc-sign {
+  height: 22px;
+  max-width: 90px;
+  object-fit: contain;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: #fff;
+}
+.acc-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.acc-pdf-btn {
+  background: var(--color-info);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.acc-pdf-btn:hover {
+  opacity: 0.85;
+}
 .tbm-item-ok,
 .tbm-item-flag {
   font-size: 10px;
