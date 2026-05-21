@@ -483,9 +483,14 @@ function draw(event) {
 }
 
 function clearCanvas() {
-  // [모바일 패치] dpr 보정된 좌표계 기준으로 CSS 픽셀 영역 전체 클리어
-  const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  // [수정] 변환 행렬(dpr 스케일) 무시하고 캔버스 픽셀 버퍼 전체를 강제 클리어
+  // — 모달이 hidden 상태에서 호출되어도, 다음 서명 시작 시 이전 그림이 남지 않음
+  if (!canvas || !ctx) return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+  // 빈 캔버스의 dataURL을 미리 기록해두면 다음 비교에 활용 가능 (선택)
 }
 
 // 서명 저장 및 결과 확인 모달로 연동
@@ -538,9 +543,13 @@ function saveSignature() {
 }
 
 function openSignModal() {
-  // 모달을 열 때 캔버스 초기화
-  clearCanvas();
+  // [수정] 모달을 먼저 active 시키고 → 다음 프레임에 리사이즈+클리어
+  // (모달이 hidden 상태일 때 캔버스 rect.width=0이 되어 클리어 실패하는 문제 해결)
   document.getElementById("sign-pad-modal").classList.add("active");
+  setTimeout(() => {
+    resizeSignatureCanvas();  // 캔버스 크기 dpr 기준 재설정
+    clearCanvas();            // 픽셀 버퍼 전체 강제 클리어
+  }, 30);
 }
 
 // =========================================================================
@@ -689,14 +698,14 @@ function submitChecklist() {
       if (res.id) record.id = res.id;
     } catch (err) {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = `<i class="fa-solid fa-file-shield"></i> 주간 자율점검표 제출`;
+      submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
       alert("⚠️ 구글 시트 저장 실패\n" + err.message + "\n\n네트워크나 GAS Web App URL을 확인해주세요.");
       return;
     }
 
     checklistDb.unshift(record);
     submitBtn.disabled = false;
-    submitBtn.innerHTML = `<i class="fa-solid fa-file-shield"></i> 주간 자율점검표 제출`;
+    submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
 
     // 폼 초기화 및 적정 표시 리셋
     document.getElementById("chk-input-remarks").value = "";
@@ -1809,7 +1818,7 @@ function submitTbm() {
       if (res.id) record.id = res.id;
     } catch (err) {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = `<i class="fa-solid fa-users-gear"></i> TBM 자가진단 제출`;
+      submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
       alert("⚠️ 구글 시트 저장 실패\n" + err.message);
       return;
     }
@@ -1817,7 +1826,7 @@ function submitTbm() {
     tbmDb.unshift(record);
 
     submitBtn.disabled = false;
-    submitBtn.innerHTML = `<i class="fa-solid fa-users-gear"></i> TBM 자가진단 제출`;
+    submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
 
     // 보관소 TBM 서브탭으로 이동
     document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
