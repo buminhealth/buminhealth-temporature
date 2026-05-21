@@ -314,8 +314,90 @@
                   <input type="date" class="m-input" id="m-input-tbm-date">
                 </div>
 
-                <!-- 9개 TBM 항목 — JS에서 동적 생성 -->
-                <div id="tbm-items-container" class="checklist-divider"></div>
+                <!-- [핵심 수정] 9개 TBM 자가진단 항목 — 자율점검표와 동일 패턴으로 정적 HTML 박음 -->
+                <div id="tbm-items-container" class="checklist-divider">
+                  <div class="chk-item-row" data-key="q1">
+                    <div class="chk-item-desc">
+                      <p><strong>[컨디션]</strong> 현재 가벼운 두통, 어지러움, 속 울렁거림 또는 무력감이 있습니까?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q2">
+                    <div class="chk-item-desc">
+                      <p><strong>[건강상태]</strong> 현재 감기 기운(오한, 발열)이 있거나, 혈압·당뇨·이뇨제 등의 약을 복용 중입니까?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q3">
+                    <div class="chk-item-desc">
+                      <p><strong>[개인요인]</strong> 전날 과음을 하였거나, 수면 부족으로 오늘 유독 피로감이 심합니까?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q4">
+                    <div class="chk-item-desc">
+                      <p><strong>[현장적응]</strong> 우리 현장에 신규 배치되었거나, 고온 환경 작업이 오랜만(또는 처음)입니까?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q5">
+                    <div class="chk-item-desc">
+                      <p><strong>[외관 관찰]</strong> 얼굴이 유독 창백하거나 붉은 사람, 숨을 거칠게 쉬는 사람이 있는가?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q6">
+                    <div class="chk-item-desc">
+                      <p><strong>[행동 관찰]</strong> 대답이 눈에 띄게 굼뜨거나, 걸음걸이가 비틀거리는 사람이 있는가?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q7">
+                    <div class="chk-item-desc">
+                      <p><strong>[특별관리대상]</strong> 오늘 작업조에 민감군(고령자/유소견자/신규자) 지정 대상자가 있습니까?</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn" data-val="예">예</button>
+                      <button type="button" class="yn-btn active" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q8">
+                    <div class="chk-item-desc">
+                      <p><strong>[물 섭취 규칙]</strong> 매 15~20분마다 시원한 물을 규칙적으로 마시겠습니다.</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn active" data-val="예">예</button>
+                      <button type="button" class="yn-btn" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                  <div class="chk-item-row" data-key="q9">
+                    <div class="chk-item-desc">
+                      <p><strong>[동료 관찰]</strong> 작업 중 옆 동료가 횡설수설하거나 비틀거리면 즉시 작업을 멈추고 관리자에게 알리겠습니다.</p>
+                    </div>
+                    <div class="yn-toggle-group">
+                      <button type="button" class="yn-btn active" data-val="예">예</button>
+                      <button type="button" class="yn-btn" data-val="아니오">아니오</button>
+                    </div>
+                  </div>
+                </div>
 
                 <div class="form-field" style="margin-top: 15px; padding: 0 5px;">
                   <label><i class="fa-regular fa-comment-dots"></i> 특이사항</label>
