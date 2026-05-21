@@ -894,7 +894,7 @@ function renderArchive() {
         <span class="tr-time">${row.time} 전송</span>
       </div>
       <div class="t-rec-body">
-        <span class="tr-vals">${row.location} - <strong>${row.temp.toFixed(1)}℃</strong> / <strong>${row.humidity}%</strong></span>
+        <span class="tr-vals">${row.location}</span>
         <span class="badge ${row.stage === '정상' ? 'badge-normal' : row.stage === '관심' ? 'badge-interest' : row.stage === '주의' ? 'badge-attention' : row.stage === '경고' ? 'badge-warning' : 'badge-danger'}">${row.stage}</span>
       </div>
       <div class="t-rec-footer">
@@ -925,72 +925,47 @@ function renderArchive() {
     return matchDate;
   });
 
-  // 자율점검 13개 항목 라벨 매핑
-  const CHECK_ITEMS = [
-    { key: "water_supply",          label: "물 식수제공" },
-    { key: "shade_cooling",         label: "그늘 냉방" },
-    { key: "shade_minimize",        label: "그늘 최소화" },
-    { key: "rest_facility",         label: "휴식 시설" },
-    { key: "rest_31",               label: "31도 휴식" },
-    { key: "rest_33",               label: "33도 휴식" },
-    { key: "cooling_gear",          label: "보냉장구" },
-    { key: "emergency_unconscious", label: "응급 무의식" },
-    { key: "emergency_conscious",   label: "응급 의식" },
-    { key: "other_thermometer",     label: "온습도계" },
-    { key: "other_education",       label: "안전교육" },
-    { key: "other_record",          label: "기록보관" },
-    { key: "other_sensitive",       label: "민감군" }
+  // 자율점검 13개 항목 (상태 판정용)
+  const CHECK_KEYS = [
+    "water_supply","shade_cooling","shade_minimize","rest_facility","rest_31","rest_33",
+    "cooling_gear","emergency_unconscious","emergency_conscious","other_thermometer",
+    "other_education","other_record","other_sensitive"
   ];
 
   filteredChecklistDb.forEach(row => {
-    // 13개 항목 결과 요약 + 상태 배지 계산
-    const flagCount = CHECK_ITEMS.filter(i => row[i.key] === "개선필요").length;
-    const overall = flagCount >= 3 ? '주의 다수'
-                  : flagCount >= 1 ? '개선 필요'
-                  : '정상';
-    const badgeCls = flagCount >= 3 ? 'badge-danger'
-                   : flagCount >= 1 ? 'badge-warning'
-                   : 'badge-normal';
-
-    const detailHtml = CHECK_ITEMS.map(i => {
-      const val = row[i.key];
-      const isAbnormal = val === "개선필요";
-      const cls = isAbnormal ? 'tbm-item-flag' : 'tbm-item-ok';
-      return `<span class="${cls}">${i.label}: ${val}</span>`;
-    }).join("");
+    // 상태 판정: 13개 중 "개선필요" 있으면 주의, 아니면 정상
+    const flagCount = CHECK_KEYS.filter(k => row[k] === "개선필요").length;
+    const overall = flagCount >= 1 ? '주의' : '정상';
+    const badgeCls = flagCount >= 1 ? 'badge-attention' : 'badge-normal';
 
     const rowDiv = document.createElement("div");
-    rowDiv.className = "archive-card temp-card";
+    rowDiv.className = "archive-card-compact";
 
     rowDiv.innerHTML = `
-      <div class="card-header">
-        <div class="card-header-left">
-          <input type="checkbox" class="chk-item-print chk-check-print" data-id="${row.id}">
-          <div>
-            <div class="card-date">${row.date} <span class="card-slot-chip">자율점검</span></div>
-            <div class="card-sign-thumb"><img src="${dummySignature}" alt="서명"></div>
-          </div>
-        </div>
-        <div class="card-header-right">
-          <span class="badge ${badgeCls}">${overall}</span>
-          <button class="btn-print-check" data-id="${row.id}">
-            <i class="fa-solid fa-file-pdf"></i>
-          </button>
-        </div>
+      <div class="acc-left">
+        <input type="checkbox" class="chk-item-print chk-check-print" data-id="${row.id}">
+        <span class="acc-date">${row.date}</span>
+        <span class="card-slot-chip">자율점검</span>
       </div>
-      <div class="card-body">
-        <div class="tbm-items-summary">${detailHtml}</div>
-        ${row.remarks ? `<div class="tbm-remarks">📝 ${row.remarks}</div>` : ''}
+      <div class="acc-mid">
+        <img class="acc-sign" src="${dummySignature}" alt="서명">
+      </div>
+      <div class="acc-right">
+        <span class="badge ${badgeCls}">${overall}</span>
+        <button class="acc-pdf-btn btn-print-check" data-id="${row.id}">
+          <i class="fa-solid fa-file-pdf"></i>
+        </button>
       </div>
     `;
 
-    // 🌟 카드 클릭 시 상세 모달 오픈 (기존 동작 유지) — 단, 체크박스/PDF 버튼 클릭은 모달 안 열림
+    // 🌟 카드 클릭 시 상세 모달 오픈 (기존 동작 유지)
+    // 단, 체크박스/PDF 버튼 클릭 시에는 모달 열리지 않음
     rowDiv.addEventListener("click", (e) => {
       if (e.target.closest('input[type="checkbox"]') || e.target.closest('button')) return;
       openChecklistViewer(row);
     });
 
-    // 개별 PDF 버튼은 이벤트 전파 차단
+    // 개별 PDF 버튼: 이벤트 전파 차단 + 해당 항목만 출력
     const printBtn = rowDiv.querySelector(".btn-print-check");
     if (printBtn) {
       printBtn.addEventListener("click", (e) => {
@@ -1851,43 +1826,24 @@ function renderTbmArchiveList() {
   box.innerHTML = tbmDb.map(r => {
     const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length;
     const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
-    const overall = riskHits >= 2 ? '위험 신호 다수'
-                  : riskHits >= 1 ? '위험 신호 있음'
-                  : pledgeMiss > 0 ? '서약 미이행 있음'
-                  : '정상';
-    const badgeCls = riskHits >= 2 ? 'badge-danger'
-                   : riskHits >= 1 ? 'badge-warning'
-                   : pledgeMiss > 0 ? 'badge-attention'
-                   : 'badge-normal';
-
-    // 항목별 결과 요약 (예: Q1예/Q2아니오...)
-    const detailHtml = TBM_QUESTIONS.map(q => {
-      const val = r[q.key];
-      const isAbnormal = (q.riskOnYes && val === "예") || (q.category === "pledge" && val === "아니오");
-      const cls = isAbnormal ? 'tbm-item-flag' : 'tbm-item-ok';
-      return `<span class="${cls}">${q.label.replace(/[\[\]]/g, '')}: ${val}</span>`;
-    }).join("");
+    const overall = (riskHits >= 1 || pledgeMiss > 0) ? '주의' : '정상';
+    const badgeCls = (riskHits >= 1 || pledgeMiss > 0) ? 'badge-attention' : 'badge-normal';
 
     return `
-      <div class="archive-card temp-card">
-        <div class="card-header">
-          <div class="card-header-left">
-            <input type="checkbox" class="chk-tbm-print" data-id="${r.id}">
-            <div>
-              <div class="card-date">${r.date} <span class="card-slot-chip">TBM</span></div>
-              <div class="card-sign-thumb"><img src="${dummySignature}" alt="서명"></div>
-            </div>
-          </div>
-          <div class="card-header-right">
-            <span class="badge ${badgeCls}">${overall}</span>
-            <button class="btn-print-temp" data-id="${r.id}" onclick="printSingleTbm('${r.id}')">
-              <i class="fa-solid fa-file-pdf"></i>
-            </button>
-          </div>
+      <div class="archive-card-compact">
+        <div class="acc-left">
+          <input type="checkbox" class="chk-tbm-print" data-id="${r.id}">
+          <span class="acc-date">${r.date}</span>
+          <span class="card-slot-chip">TBM</span>
         </div>
-        <div class="card-body">
-          <div class="tbm-items-summary">${detailHtml}</div>
-          ${r.remarks ? `<div class="tbm-remarks">📝 ${r.remarks}</div>` : ''}
+        <div class="acc-mid">
+          <img class="acc-sign" src="${dummySignature}" alt="서명">
+        </div>
+        <div class="acc-right">
+          <span class="badge ${badgeCls}">${overall}</span>
+          <button class="acc-pdf-btn" onclick="printSingleTbm('${r.id}')">
+            <i class="fa-solid fa-file-pdf"></i>
+          </button>
         </div>
       </div>
     `;
