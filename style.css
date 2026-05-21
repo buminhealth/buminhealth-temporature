@@ -293,7 +293,7 @@ body {
   border-top: 1px solid var(--border-color);
   background: #ffffff;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, 1fr);  /* [수정] 4개 메뉴 균등 분할 (체감기록/TBM/자율점검/보관소) */
   align-items: center;
   z-index: 10;
 }
