@@ -717,83 +717,120 @@ function updateMissingRecordsWidget() {
 // [패치 ③] Google Sheets에서 데이터 로드 (페이지 진입 시 1회)
 // =========================================================================
 async function loadFromSheets() {
-  try {
-    // [TBM 패치] 3개 시트 병렬 로드
-    const [tempRes, chkRes, tbmRes] = await Promise.all([
-      gasCall({ action: "list", target: "temp" }),
-      gasCall({ action: "list", target: "checklist" }),
-      gasCall({ action: "list", target: "tbm" })
-    ]);
+  // [보강] Promise.allSettled: 한 시트가 실패해도 다른 시트는 정상 로드되도록 변경
+  const results = await Promise.allSettled([
+    gasCall({ action: "list", target: "temp" }),
+    gasCall({ action: "list", target: "checklist" }),
+    gasCall({ action: "list", target: "tbm" })
+  ]);
 
-    if (tempRes && tempRes.ok && Array.isArray(tempRes.records)) {
-      tempDb = tempRes.records
-        .filter(r => r["ID"])
-        .map(r => ({
-          id: String(r["ID"]),
-          date: _formatDateOnly(r["기록일시"]),
-          slot: r["시간슬롯"] || "AM",
-          time: _formatTimeOnly(r["기록일시"]),
-          inspector: r["측정자"] || "보건관리자",
-          location: r["측정 장소"] || "",
-          temp: parseFloat(r["기온"]) || 0,
-          humidity: parseFloat(r["습도"]) || 0,
-          perceived: parseFloat(r["체감온도"]) || 0,
-          stage: r["폭염 단계"] || "정상",
-          action: koshaActions[r["폭염 단계"]] || koshaActions["정상"],
-          signature: r["서명"] || dummySignature,
-          remarks: r["특이사항"] || ""
-        }))
-        .sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot));
-    }
+  const [tempSettled, chkSettled, tbmSettled] = results;
+  const tempRes = tempSettled.status === "fulfilled" ? tempSettled.value : null;
+  const chkRes  = chkSettled.status  === "fulfilled" ? chkSettled.value  : null;
+  const tbmRes  = tbmSettled.status  === "fulfilled" ? tbmSettled.value  : null;
 
-    if (chkRes && chkRes.ok && Array.isArray(chkRes.records)) {
-      checklistDb = chkRes.records
-        .filter(r => r["ID"])
-        .map(r => ({
-          id: String(r["ID"]),
-          date: _formatDateOnly(r["점검일시"]),
-          water_supply: r["물_식수제공"] || "적정",
-          shade_cooling: r["그늘_냉방그늘막"] || "적정",
-          shade_minimize: r["그늘_노출최소화"] || "적정",
-          rest_facility: r["휴식_휴게시설"] || "적정",
-          rest_31: r["휴식_31도휴식"] || "적정",
-          rest_33: r["휴식_33도휴식"] || "적정",
-          cooling_gear: r["보냉장구_개인지급"] || "적정",
-          emergency_unconscious: r["응급조치_무의식신고"] || "적정",
-          emergency_conscious: r["응급조치_의식응급조치"] || "적정",
-          other_thermometer: r["그외_온습도계"] || "적정",
-          other_education: r["그외_안전교육"] || "적정",
-          other_record: r["그외_기록보관"] || "적정",
-          other_sensitive: r["그외_민감군계획"] || "적정",
-          remarks: r["특이사항"] || ""
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-    }
+  // [보강] 디버그 로그 — 콘솔(F12)에서 어떤 데이터가 들어왔는지 확인 가능
+  console.log("[로드:체감]", tempRes);
+  console.log("[로드:자율점검]", chkRes);
+  console.log("[로드:TBM]", tbmRes);
 
-    // [TBM 패치] TBM 데이터 매핑
-    if (tbmRes && tbmRes.ok && Array.isArray(tbmRes.records)) {
-      tbmDb = tbmRes.records
-        .filter(r => r["ID"])
-        .map(r => ({
-          id: String(r["ID"]),
-          date: _formatDateOnly(r["작성일시"]),
-          inspector: r["작성자"] || "보건관리자",
-          q1: r["Q1_컨디션"]      || "아니오",
-          q2: r["Q2_건강상태"]    || "아니오",
-          q3: r["Q3_개인요인"]    || "아니오",
-          q4: r["Q4_현장적응"]    || "아니오",
-          q5: r["Q5_외관관찰"]    || "아니오",
-          q6: r["Q6_행동관찰"]    || "아니오",
-          q7: r["Q7_특별관리"]    || "아니오",
-          q8: r["Q8_물섭취서약"]  || "예",
-          q9: r["Q9_동료관찰서약"]|| "예",
-          remarks: r["특이사항"] || ""
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date));
+  // 헤더 trim 보정 헬퍼 — 시트 헤더에 우연한 공백이 있어도 매칭되도록
+  const pick = (r, key) => {
+    if (r[key] !== undefined) return r[key];
+    // 공백 차이 등 fallback 매칭
+    for (const k of Object.keys(r)) {
+      if (String(k).trim() === key) return r[k];
     }
-  } catch (err) {
-    console.error("[Sheets 로드 실패]", err);
-    alert("⚠️ Google Sheets 데이터 로드 실패\n" + err.message + "\n\n임시로 빈 상태에서 동작합니다. 새 기록 저장도 실패할 수 있습니다.");
+    return undefined;
+  };
+
+  // ── 체감온도 매핑 ──
+  if (tempRes && tempRes.ok && Array.isArray(tempRes.records)) {
+    tempDb = tempRes.records
+      .filter(r => pick(r, "ID"))
+      .map(r => ({
+        id: String(pick(r, "ID")),
+        date: _formatDateOnly(pick(r, "기록일시")),
+        slot: pick(r, "시간슬롯") || "AM",
+        time: _formatTimeOnly(pick(r, "기록일시")),
+        inspector: pick(r, "측정자") || "보건관리자",
+        location: pick(r, "측정 장소") || "",
+        temp: parseFloat(pick(r, "기온")) || 0,
+        humidity: parseFloat(pick(r, "습도")) || 0,
+        perceived: parseFloat(pick(r, "체감온도")) || 0,
+        stage: pick(r, "폭염 단계") || "정상",
+        action: koshaActions[pick(r, "폭염 단계")] || koshaActions["정상"],
+        signature: pick(r, "서명") || dummySignature,
+        remarks: pick(r, "특이사항") || ""
+      }))
+      .sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot));
+    console.log(`[로드:체감] 매핑 후 ${tempDb.length}건`);
+  } else {
+    console.warn("[로드:체감] 응답 비정상 또는 빈 결과");
+  }
+
+  // ── 자율점검 매핑 ──
+  if (chkRes && chkRes.ok && Array.isArray(chkRes.records)) {
+    checklistDb = chkRes.records
+      .filter(r => pick(r, "ID"))
+      .map(r => ({
+        id: String(pick(r, "ID")),
+        date: _formatDateOnly(pick(r, "점검일시")),
+        water_supply: pick(r, "물_식수제공") || "적정",
+        shade_cooling: pick(r, "그늘_냉방그늘막") || "적정",
+        shade_minimize: pick(r, "그늘_노출최소화") || "적정",
+        rest_facility: pick(r, "휴식_휴게시설") || "적정",
+        rest_31: pick(r, "휴식_31도휴식") || "적정",
+        rest_33: pick(r, "휴식_33도휴식") || "적정",
+        cooling_gear: pick(r, "보냉장구_개인지급") || "적정",
+        emergency_unconscious: pick(r, "응급조치_무의식신고") || "적정",
+        emergency_conscious: pick(r, "응급조치_의식응급조치") || "적정",
+        other_thermometer: pick(r, "그외_온습도계") || "적정",
+        other_education: pick(r, "그외_안전교육") || "적정",
+        other_record: pick(r, "그외_기록보관") || "적정",
+        other_sensitive: pick(r, "그외_민감군계획") || "적정",
+        remarks: pick(r, "특이사항") || ""
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    console.log(`[로드:자율점검] 매핑 후 ${checklistDb.length}건`);
+    if (chkRes.records.length > 0 && checklistDb.length === 0) {
+      console.error("[로드:자율점검] ⚠️ 시트에 데이터는 있는데 매핑 0건! 헤더 이름 불일치 가능성. 첫 레코드 헤더 확인:", Object.keys(chkRes.records[0]));
+    }
+  } else {
+    console.warn("[로드:자율점검] 응답 비정상 또는 빈 결과:", chkSettled);
+  }
+
+  // ── TBM 매핑 ──
+  if (tbmRes && tbmRes.ok && Array.isArray(tbmRes.records)) {
+    tbmDb = tbmRes.records
+      .filter(r => pick(r, "ID"))
+      .map(r => ({
+        id: String(pick(r, "ID")),
+        date: _formatDateOnly(pick(r, "작성일시")),
+        inspector: pick(r, "작성자") || "보건관리자",
+        q1: pick(r, "Q1_컨디션")      || "아니오",
+        q2: pick(r, "Q2_건강상태")    || "아니오",
+        q3: pick(r, "Q3_개인요인")    || "아니오",
+        q4: pick(r, "Q4_현장적응")    || "아니오",
+        q5: pick(r, "Q5_외관관찰")    || "아니오",
+        q6: pick(r, "Q6_행동관찰")    || "아니오",
+        q7: pick(r, "Q7_특별관리")    || "아니오",
+        q8: pick(r, "Q8_물섭취서약")  || "예",
+        q9: pick(r, "Q9_동료관찰서약")|| "예",
+        remarks: pick(r, "특이사항") || ""
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    console.log(`[로드:TBM] 매핑 후 ${tbmDb.length}건`);
+    if (tbmRes.records.length > 0 && tbmDb.length === 0) {
+      console.error("[로드:TBM] ⚠️ 시트에 데이터는 있는데 매핑 0건! 헤더 이름 불일치 가능성. 첫 레코드 헤더 확인:", Object.keys(tbmRes.records[0]));
+    }
+  } else {
+    console.warn("[로드:TBM] 응답 비정상 또는 빈 결과:", tbmSettled);
+  }
+
+  // 전체 실패 시에만 사용자 알림
+  if (!tempRes && !chkRes && !tbmRes) {
+    alert("⚠️ Google Sheets 데이터 로드 실패\n네트워크 또는 GAS Web App URL을 확인해주세요.");
   }
 }
 
@@ -862,7 +899,6 @@ function renderArchive() {
       </div>
       <div class="t-rec-footer">
         <div class="t-rec-sign-thumb">
-          <span>작성자 서명:</span>
           <img src="${row.signature}" alt="서명">
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
@@ -889,25 +925,82 @@ function renderArchive() {
     return matchDate;
   });
 
+  // 자율점검 13개 항목 라벨 매핑
+  const CHECK_ITEMS = [
+    { key: "water_supply",          label: "물 식수제공" },
+    { key: "shade_cooling",         label: "그늘 냉방" },
+    { key: "shade_minimize",        label: "그늘 최소화" },
+    { key: "rest_facility",         label: "휴식 시설" },
+    { key: "rest_31",               label: "31도 휴식" },
+    { key: "rest_33",               label: "33도 휴식" },
+    { key: "cooling_gear",          label: "보냉장구" },
+    { key: "emergency_unconscious", label: "응급 무의식" },
+    { key: "emergency_conscious",   label: "응급 의식" },
+    { key: "other_thermometer",     label: "온습도계" },
+    { key: "other_education",       label: "안전교육" },
+    { key: "other_record",          label: "기록보관" },
+    { key: "other_sensitive",       label: "민감군" }
+  ];
+
   filteredChecklistDb.forEach(row => {
+    // 13개 항목 결과 요약 + 상태 배지 계산
+    const flagCount = CHECK_ITEMS.filter(i => row[i.key] === "개선필요").length;
+    const overall = flagCount >= 3 ? '주의 다수'
+                  : flagCount >= 1 ? '개선 필요'
+                  : '정상';
+    const badgeCls = flagCount >= 3 ? 'badge-danger'
+                   : flagCount >= 1 ? 'badge-warning'
+                   : 'badge-normal';
+
+    const detailHtml = CHECK_ITEMS.map(i => {
+      const val = row[i.key];
+      const isAbnormal = val === "개선필요";
+      const cls = isAbnormal ? 'tbm-item-flag' : 'tbm-item-ok';
+      return `<span class="${cls}">${i.label}: ${val}</span>`;
+    }).join("");
+
     const rowDiv = document.createElement("div");
-    rowDiv.className = "check-history-row";
-    
+    rowDiv.className = "archive-card temp-card";
+
     rowDiv.innerHTML = `
-      <div class="c-hist-info" style="display:flex; align-items:center;">
-        <input type="checkbox" class="chk-item-print chk-check-print" data-id="${row.id}">
-        <span class="c-h-date"><i class="fa-regular fa-calendar" style="margin-left:5px; margin-right:5px;"></i> 점검일: ${row.date}</span>
+      <div class="card-header">
+        <div class="card-header-left">
+          <input type="checkbox" class="chk-item-print chk-check-print" data-id="${row.id}">
+          <div>
+            <div class="card-date">${row.date} <span class="card-slot-chip">자율점검</span></div>
+            <div class="card-sign-thumb"><img src="${dummySignature}" alt="서명"></div>
+          </div>
+        </div>
+        <div class="card-header-right">
+          <span class="badge ${badgeCls}">${overall}</span>
+          <button class="btn-print-check" data-id="${row.id}">
+            <i class="fa-solid fa-file-pdf"></i>
+          </button>
+        </div>
       </div>
-      <div class="c-hist-icon" style="display: flex; gap: 10px; align-items: center;">
-        <button class="m-btn m-btn-green btn-print-check" style="margin: 0; padding: 4px 8px; font-size: 10px;" data-id="${row.id}"><i class="fa-solid fa-file-pdf"></i> 개별 출력</button>
-        <i class="fa-solid fa-chevron-right"></i>
+      <div class="card-body">
+        <div class="tbm-items-summary">${detailHtml}</div>
+        ${row.remarks ? `<div class="tbm-remarks">📝 ${row.remarks}</div>` : ''}
       </div>
     `;
 
-    // 🌟 날짜를 클릭하면 팝업 상세 모달 오픈 (핵심 요구사항)
-    rowDiv.addEventListener("click", () => {
+    // 🌟 카드 클릭 시 상세 모달 오픈 (기존 동작 유지) — 단, 체크박스/PDF 버튼 클릭은 모달 안 열림
+    rowDiv.addEventListener("click", (e) => {
+      if (e.target.closest('input[type="checkbox"]') || e.target.closest('button')) return;
       openChecklistViewer(row);
     });
+
+    // 개별 PDF 버튼은 이벤트 전파 차단
+    const printBtn = rowDiv.querySelector(".btn-print-check");
+    if (printBtn) {
+      printBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelectorAll(".chk-check-print").forEach(chk => chk.checked = false);
+        const targetChk = rowDiv.querySelector(".chk-check-print");
+        if (targetChk) targetChk.checked = true;
+        printSelectedChecklists();
+      });
+    }
 
     checkContainer.appendChild(rowDiv);
   });
@@ -1782,7 +1875,7 @@ function renderTbmArchiveList() {
             <input type="checkbox" class="chk-tbm-print" data-id="${r.id}">
             <div>
               <div class="card-date">${r.date} <span class="card-slot-chip">TBM</span></div>
-              <div class="card-loc">${r.inspector || '보건관리자'} · 작업 전 자가진단</div>
+              <div class="card-sign-thumb"><img src="${dummySignature}" alt="서명"></div>
             </div>
           </div>
           <div class="card-header-right">
