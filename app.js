@@ -1966,8 +1966,8 @@ function _buildTbmPrintAndPrint(ids) {
           <tr>
             <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:100px;border:1px solid #cbd5e1;">작성일</td>
             <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.date}</td>
-            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:80px;border:1px solid #cbd5e1;">작성자</td>
-            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.inspector || '보건관리자'}</td>
+            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:80px;border:1px solid #cbd5e1;">서명</td>
+            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.signature ? `<img src="${r.signature}" style="height:30px;max-width:120px;object-fit:contain;">` : '-'}</td>
           </tr>
         </table>
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
