@@ -1161,6 +1161,7 @@ function printSelectedTempRecords() {
       <tr>
         <td>${r.date.substring(5).replace('-', '.')}</td>
         <td>${r.time}</td>
+        <td style="font-size:9px;">${r.location || ''}</td>
         <td>${r.temp.toFixed(1)}</td>
         <td>${r.humidity}</td>
         <td>${r.perceived.toFixed(2)}</td>
@@ -1180,11 +1181,12 @@ function printSelectedTempRecords() {
   for(let i=0; i<emptyRowsNeeded; i++) {
     rowsHtml += `
         <tr>
-          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
         </tr>
     `;
   }
 
+  printArea.innerHTML = "";  // 이전 출력 내용 초기화
   printArea.innerHTML = `
     <div class="kosha-print-title">체감온도 기록지</div>
     <div class="kosha-print-info">
@@ -1198,10 +1200,11 @@ function printSelectedTempRecords() {
         <tr>
           <th rowspan="2" width="6%">날짜</th>
           <th rowspan="2" width="6%">시간</th>
+          <th rowspan="2" width="12%">측정장소</th>
           <th colspan="3">항목</th>
           <th colspan="5">구분 (체감온도 기준)</th>
-          <th rowspan="2" width="23%">조치사항</th>
-          <th rowspan="2" width="13%">비고</th>
+          <th rowspan="2" width="20%">조치사항</th>
+          <th rowspan="2" width="10%">비고</th>
         </tr>
         <tr>
           <th width="6%">온도</th>
@@ -1220,7 +1223,13 @@ function printSelectedTempRecords() {
     </table>
   `;
 
-  window.print();
+  // DOM 렌더링 완료 후 print (즉시 호출 시 빈 출력 방지)
+  setTimeout(() => {
+    window.print();
+    // 출력 완료 후 print-area 초기화
+    const cleanup = () => { printArea.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
+    window.addEventListener("afterprint", cleanup);
+  }, 300);
 }
 
 function printSelectedChecklists() {
@@ -1349,7 +1358,14 @@ function printSelectedChecklists() {
     printArea.appendChild(pageDiv);
   });
 
-  window.print();
+  // DOM 렌더링 완료 후 print (즉시 호출 시 빈 출력 방지)
+  setTimeout(() => {
+    const pa = document.getElementById("print-area");
+    window.print();
+    // 출력 완료 후 print-area 초기화
+    const cleanup = () => { if(pa) pa.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
+    window.addEventListener("afterprint", cleanup);
+  }, 300);
 }
 
 // =========================================================================
@@ -1804,6 +1820,8 @@ function initTbmScreen() {
 function submitTbm() {
   const submitBtn = document.getElementById("btn-submit-tbm");
   const dateStr = document.getElementById("m-input-tbm-date").value;
+  const deptEl = document.getElementById("m-input-tbm-dept");
+  const deptStr = deptEl ? deptEl.value : "";
   const remarks = document.getElementById("tbm-input-remarks").value || "";
 
   if (!dateStr) {
@@ -1812,7 +1830,7 @@ function submitTbm() {
   }
 
   // 9개 항목 값 수집
-  const record = { date: dateStr, inspector: "보건관리자", remarks: remarks, signature: savedSignatureDataUrl };
+  const record = { date: dateStr, dept: deptStr, inspector: "보건관리자", remarks: remarks, signature: savedSignatureDataUrl };
   TBM_QUESTIONS.forEach(q => {
     const row = document.querySelector(`#tbm-items-container .chk-item-row[data-key="${q.key}"]`);
     const active = row ? row.querySelector(".yn-btn.active") : null;
@@ -1980,6 +1998,10 @@ function _buildTbmPrintAndPrint(ids) {
             <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:80px;border:1px solid #cbd5e1;">서명</td>
             <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.signature ? `<img src="${r.signature}" style="height:30px;max-width:120px;object-fit:contain;">` : '-'}</td>
           </tr>
+          <tr>
+            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;border:1px solid #cbd5e1;">작성 부서</td>
+            <td style="padding:6px 10px;border:1px solid #cbd5e1;" colspan="3">${r.dept || '-'}</td>
+          </tr>
         </table>
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead>
@@ -1998,6 +2020,17 @@ function _buildTbmPrintAndPrint(ids) {
   }).join('<div style="page-break-after: always;"></div>');
 
   const w = window.open("", "TBM_PRINT", "width=900,height=1200");
+  if (!w) {
+    // 팝업 차단 시 print-area 방식으로 폴백
+    const pa = document.getElementById("print-area");
+    pa.innerHTML = `<div style="font-family:'Pretendard',sans-serif;color:#0f172a;">${html}</div>`;
+    setTimeout(() => {
+      window.print();
+      const cleanup = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
+      window.addEventListener("afterprint", cleanup);
+    }, 300);
+    return;
+  }
   w.document.write(`
     <!doctype html><html><head><meta charset="utf-8"><title>TBM 자가진단 출력</title>
     <style>
@@ -2006,7 +2039,7 @@ function _buildTbmPrintAndPrint(ids) {
       td, th { border: 1px solid #cbd5e1; }
       .print-page { padding: 0; }
     </style>
-    </head><body>${html}<script>window.onload=()=>{window.print();}</script></body></html>
+    </head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>
   `);
   w.document.close();
 }
