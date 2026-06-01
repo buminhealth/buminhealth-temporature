@@ -86,6 +86,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const dateStr = `${y}-${m}-${d}`;
   document.getElementById("m-input-record-date").value = dateStr;
   document.getElementById("m-input-checklist-date").value = dateStr;
+  // 체감기록 시간 자동 입력 (현재 실제 시각)
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const timeEl = document.getElementById("m-input-record-time");
+  if (timeEl) timeEl.value = hh + ':' + mi;
   // [TBM 패치] TBM 날짜 초기값 + 9개 항목 동적 생성
   const tbmDateEl = document.getElementById("m-input-tbm-date");
   if (tbmDateEl) tbmDateEl.value = dateStr;
@@ -119,9 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
   updateMissingRecordsWidget();
 
   // 이벤트 트리거 바인딩
-  document.getElementById("btn-slot-am").addEventListener("click", () => setSlot("AM"));
-  document.getElementById("btn-slot-pm").addEventListener("click", () => setSlot("PM"));
-  
   document.getElementById("btn-open-sign-modal").addEventListener("click", () => {
     signContext = "temp";  // [신규] 체감기록 컨텍스트
     openSignModal();
@@ -258,12 +260,14 @@ function setSlot(slot) {
   const amBtn = document.getElementById("btn-slot-am");
   const pmBtn = document.getElementById("btn-slot-pm");
 
-  if (slot === "AM") {
-    amBtn.classList.add("active");
-    pmBtn.classList.remove("active");
-  } else {
-    pmBtn.classList.add("active");
-    amBtn.classList.remove("active");
+  if (amBtn && pmBtn) {
+    if (slot === "AM") {
+      amBtn.classList.add("active");
+      pmBtn.classList.remove("active");
+    } else {
+      pmBtn.classList.add("active");
+      amBtn.classList.remove("active");
+    }
   }
 }
 
@@ -586,12 +590,19 @@ function submitRecordFinal() {
     const d = String(now.getDate()).padStart(2, '0');
     dateStr = `${y}-${m}-${d}`;
   }
-  const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+  // 사용자가 입력한 시간 필드 사용 (없으면 현재 시각으로 폴백)
+  let timeStr = document.getElementById("m-input-record-time")?.value || "";
+  if (!timeStr) {
+    timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+  }
+  // 시간 기준으로 AM/PM 자동 판별
+  const timeHour = parseInt(timeStr.split(':')[0], 10);
+  const derivedSlot = timeHour < 12 ? "AM" : "PM";
 
   const record = {
     id: newId,
     date: dateStr,
-    slot: activeSlot,
+    slot: derivedSlot,
     time: timeStr,
     inspector: activeInspector,
     location: selectedLocation,
