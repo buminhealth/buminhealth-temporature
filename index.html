@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -213,21 +214,16 @@
                 <p>1일 2회(오전 10시/오후 2시) 측정치를 기록하고 전자서명을 완료하십시오.</p>
               </div>
 
-              <!-- 오전/오후 즉시 선택 및 시간 동기화 -->
-              <div class="measurement-slot-selector">
-                <button class="slot-btn active" data-slot="AM" id="btn-slot-am">
-                  <i class="fa-regular fa-sun"></i> 오전 10시 기록
-                </button>
-                <button class="slot-btn" data-slot="PM" id="btn-slot-pm">
-                  <i class="fa-solid fa-cloud-sun"></i> 오후 2시 기록
-                </button>
-              </div>
-
               <div class="mobile-card">
                 <!-- 입력 양식 -->
                 <div class="form-field">
                   <label><i class="fa-regular fa-calendar"></i> 기록 날짜</label>
                   <input type="date" class="m-input" id="m-input-record-date">
+                </div>
+
+                <div class="form-field">
+                  <label><i class="fa-regular fa-clock"></i> 기록 시간 <span style="font-size:11px; color:var(--text-muted); font-weight:400;">(자동 입력 · 직접 수정 가능)</span></label>
+                  <input type="time" class="m-input" id="m-input-record-time" step="60">
                 </div>
                 
                 <div class="form-field">
@@ -821,3 +817,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
