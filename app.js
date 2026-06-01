@@ -1976,48 +1976,87 @@ function _buildTbmPrintAndPrint(ids) {
   const records = tbmDb.filter(r => ids.includes(r.id.toString()));
   if (records.length === 0) return;
 
-  const html = records.map(r => {
+  // A4 1장에 TBM 2개씩: 짝수 인덱스(0,2,4…)끼리 묶어서 페이지 구성
+  const pages = [];
+  for (let i = 0; i < records.length; i += 2) {
+    pages.push(records.slice(i, i + 2));
+  }
+
+  const buildOne = (r) => {
     const rows = TBM_QUESTIONS.map(q => {
       const val = r[q.key];
       const isAbnormal = (q.riskOnYes && val === "예") || (q.category === "pledge" && val === "아니오");
       return `<tr>
-        <td style="text-align:center;font-weight:600;">${q.key.toUpperCase()}</td>
-        <td><strong>${q.label}</strong> ${q.text}</td>
-        <td style="text-align:center;font-weight:800;color:${isAbnormal ? '#dc2626' : '#0f172a'};">${val}</td>
+        <td style="text-align:center;font-weight:600;padding:5px 4px;width:38px;">${q.key.toUpperCase()}</td>
+        <td style="padding:5px 7px;text-align:left;line-height:1.4;"><strong>${q.label}</strong> ${q.text}</td>
+        <td style="text-align:center;font-weight:800;padding:5px 4px;width:44px;color:${isAbnormal ? '#dc2626' : '#0f172a'};">${val}</td>
       </tr>`;
     }).join("");
 
     return `
-      <div class="print-page">
-        <h1 style="text-align:center;margin:0 0 6px 0;font-size:18px;">TBM (Tool Box Meeting) 자가진단 체크리스트</h1>
-        <p style="text-align:center;margin:0 0 14px 0;font-size:11px;color:#64748b;">작업 전 안전회의 — 부민병원그룹</p>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px;">
+      <div class="tbm-block">
+        <div class="tbm-title">TBM (Tool Box Meeting) 자가진단 체크리스트</div>
+        <div class="tbm-sub">작업 전 안전회의 — 부민병원그룹</div>
+        <table class="tbm-meta">
+          <colgroup>
+            <col style="width:13%">
+            <col style="width:22%">
+            <col style="width:13%">
+            <col style="width:26%">
+            <col style="width:13%">
+            <col style="width:13%">
+          </colgroup>
           <tr>
-            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:100px;border:1px solid #cbd5e1;">작성일</td>
-            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.date}</td>
-            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;width:80px;border:1px solid #cbd5e1;">서명</td>
-            <td style="padding:6px 10px;border:1px solid #cbd5e1;">${r.signature ? `<img src="${r.signature}" style="height:30px;max-width:120px;object-fit:contain;">` : '-'}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 10px;background:#f1f5f9;font-weight:700;border:1px solid #cbd5e1;">작성 부서</td>
-            <td style="padding:6px 10px;border:1px solid #cbd5e1;" colspan="3">${r.dept || '-'}</td>
+            <td class="meta-hd">작성일</td>
+            <td class="meta-val">${r.date}</td>
+            <td class="meta-hd">서명</td>
+            <td class="meta-val">${r.signature ? `<img src="${r.signature}" style="height:26px;max-width:90px;object-fit:contain;vertical-align:middle;">` : '-'}</td>
+            <td class="meta-hd">작성 부서</td>
+            <td class="meta-val">${r.dept || '-'}</td>
           </tr>
         </table>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <table class="tbm-body">
           <thead>
-            <tr style="background:#0891b2;color:white;">
-              <th style="padding:8px;border:1px solid #cbd5e1;width:50px;">No.</th>
-              <th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">자가진단 항목</th>
-              <th style="padding:8px;border:1px solid #cbd5e1;width:70px;">결과</th>
+            <tr>
+              <th style="width:38px;">No.</th>
+              <th style="text-align:left;">자가진단 항목</th>
+              <th style="width:44px;">결과</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        ${r.remarks ? `<div style="margin-top:12px;padding:10px;border:1px dashed #cbd5e1;font-size:11px;"><strong>특이사항:</strong> ${r.remarks}</div>` : ''}
-        <div style="margin-top:30px;text-align:right;font-size:10px;color:#64748b;">출력일시: ${new Date().toLocaleString('ko-KR')}</div>
-      </div>
-    `;
-  }).join('<div style="page-break-after: always;"></div>');
+        ${r.remarks ? `<div class="tbm-remarks"><strong>특이사항:</strong> ${r.remarks}</div>` : ''}
+      </div>`;
+  };
+
+  const html = pages.map((pair, pi) => {
+    const inner = pair.map(r => buildOne(r)).join('<div class="tbm-divider"></div>');
+    const isLast = pi === pages.length - 1;
+    return `<div class="tbm-page${isLast ? '' : ' page-break'}">${inner}</div>`;
+  }).join("");
+
+  const style = `
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Pretendard', sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 10px; }
+    .tbm-page { width: 100%; }
+    .page-break { page-break-after: always; }
+    .tbm-block { width: 100%; margin-bottom: 0; }
+    .tbm-divider { height: 8px; border-top: 1.5px dashed #94a3b8; margin: 7px 0; }
+    .tbm-title { text-align:center; font-size:14px; font-weight:800; margin:0 0 2px 0; }
+    .tbm-sub { text-align:center; font-size:9px; color:#64748b; margin:0 0 6px 0; }
+    /* 메타 테이블 (한 줄: 작성일 | 값 | 서명 | 값 | 작성부서 | 값) */
+    table.tbm-meta { width:100%; border-collapse:collapse; margin-bottom:5px; font-size:10px; }
+    table.tbm-meta td { border:1px solid #94a3b8; padding:5px 6px; }
+    td.meta-hd { background:#e2e8f0; font-weight:700; text-align:center; white-space:nowrap; }
+    td.meta-val { }
+    /* 본문 체크리스트 테이블 */
+    table.tbm-body { width:100%; border-collapse:collapse; font-size:10px; }
+    table.tbm-body th { background:#0891b2; color:#fff; padding:5px 4px; border:1px solid #94a3b8; text-align:center; }
+    table.tbm-body td { border:1px solid #cbd5e1; vertical-align:middle; }
+    table.tbm-body tbody tr td { height:22px; }
+    .tbm-remarks { margin-top:5px; padding:5px 8px; border:1px dashed #cbd5e1; font-size:9.5px; }
+  `;
 
   const w = window.open("", "TBM_PRINT", "width=900,height=1200");
   if (!w) {
@@ -2031,16 +2070,9 @@ function _buildTbmPrintAndPrint(ids) {
     }, 300);
     return;
   }
-  w.document.write(`
-    <!doctype html><html><head><meta charset="utf-8"><title>TBM 자가진단 출력</title>
-    <style>
-      @page { size: A4; margin: 15mm; }
-      body { font-family: 'Pretendard', sans-serif; color: #0f172a; padding: 0; margin: 0; }
-      td, th { border: 1px solid #cbd5e1; }
-      .print-page { padding: 0; }
-    </style>
-    </head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>
-  `);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TBM 자가진단 출력</title>
+    <style>${style}</style>
+    </head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`);
   w.document.close();
 }
 
