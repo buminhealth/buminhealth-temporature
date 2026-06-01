@@ -768,7 +768,6 @@ function updateMissingRecordsWidget() {
 // [패치 ③] Google Sheets에서 데이터 로드 (페이지 진입 시 1회)
 // =========================================================================
 async function loadFromSheets() {
-  // [보강] Promise.allSettled: 한 시트가 실패해도 다른 시트는 정상 로드되도록 변경
   const results = await Promise.allSettled([
     gasCall({ action: "list", target: "temp" }),
     gasCall({ action: "list", target: "checklist" }),
@@ -780,15 +779,12 @@ async function loadFromSheets() {
   const chkRes  = chkSettled.status  === "fulfilled" ? chkSettled.value  : null;
   const tbmRes  = tbmSettled.status  === "fulfilled" ? tbmSettled.value  : null;
 
-  // [보강] 디버그 로그 — 콘솔(F12)에서 어떤 데이터가 들어왔는지 확인 가능
   console.log("[로드:체감]", tempRes);
   console.log("[로드:자율점검]", chkRes);
   console.log("[로드:TBM]", tbmRes);
 
-  // 헤더 trim 보정 헬퍼 — 시트 헤더에 우연한 공백이 있어도 매칭되도록
   const pick = (r, key) => {
     if (r[key] !== undefined) return r[key];
-    // 공백 차이 등 fallback 매칭
     for (const k of Object.keys(r)) {
       if (String(k).trim() === key) return r[k];
     }
@@ -803,7 +799,8 @@ async function loadFromSheets() {
         id: String(pick(r, "ID")),
         date: _formatDateOnly(pick(r, "기록일시")),
         slot: pick(r, "시간슬롯") || "AM",
-        time: _formatTimeOnly(pick(r, "기록일시")),
+        // ✅ 수정됨: 사용자가 입력한 측정시간을 우선적으로 매핑합니다.
+        time: pick(r, "측정시간") || pick(r, "시간") || _formatTimeOnly(pick(r, "기록일시")),
         inspector: pick(r, "측정자") || "보건관리자",
         location: pick(r, "측정 장소") || "",
         temp: parseFloat(pick(r, "기온")) || 0,
@@ -841,13 +838,10 @@ async function loadFromSheets() {
         other_record: pick(r, "그외_기록보관") || "적정",
         other_sensitive: pick(r, "그외_민감군계획") || "적정",
         remarks: pick(r, "특이사항") || "",
-        signature: pick(r, "서명") || ""  // [신규] 서명
+        signature: pick(r, "서명") || ""
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
     console.log(`[로드:자율점검] 매핑 후 ${checklistDb.length}건`);
-    if (chkRes.records.length > 0 && checklistDb.length === 0) {
-      console.error("[로드:자율점검] ⚠️ 시트에 데이터는 있는데 매핑 0건! 헤더 이름 불일치 가능성. 첫 레코드 헤더 확인:", Object.keys(chkRes.records[0]));
-    }
   } else {
     console.warn("[로드:자율점검] 응답 비정상 또는 빈 결과:", chkSettled);
   }
@@ -870,18 +864,14 @@ async function loadFromSheets() {
         q8: pick(r, "Q8_물섭취서약")  || "예",
         q9: pick(r, "Q9_동료관찰서약")|| "예",
         remarks: pick(r, "특이사항") || "",
-        signature: pick(r, "서명") || ""  // [신규] 서명
+        signature: pick(r, "서명") || ""
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
     console.log(`[로드:TBM] 매핑 후 ${tbmDb.length}건`);
-    if (tbmRes.records.length > 0 && tbmDb.length === 0) {
-      console.error("[로드:TBM] ⚠️ 시트에 데이터는 있는데 매핑 0건! 헤더 이름 불일치 가능성. 첫 레코드 헤더 확인:", Object.keys(tbmRes.records[0]));
-    }
   } else {
     console.warn("[로드:TBM] 응답 비정상 또는 빈 결과:", tbmSettled);
   }
 
-  // 전체 실패 시에만 사용자 알림
   if (!tempRes && !chkRes && !tbmRes) {
     alert("⚠️ Google Sheets 데이터 로드 실패\n네트워크 또는 GAS Web App URL을 확인해주세요.");
   }
@@ -909,7 +899,7 @@ function _formatTimeOnly(val) {
   return `${h}:${mn}`;
 }
 
-// 보관소 리스트 렌더링
+// 보관소 리스트 렌더링 (체감 기록 목록 부분만 덮어쓰기)
 function renderArchive() {
   // 1. 체감 기록 목록 렌더링
   const tempContainer = document.getElementById("archive-temp-list");
@@ -936,7 +926,8 @@ function renderArchive() {
     
     const slotKor = row.slot === "AM" ? "오전 10시" : "오후 2시";
     const dateFormatted = row.date.substring(5).replace('-', '.');
-    const tempId = row.date + "_" + row.slot;
+    // ✅ 수정됨: 고유한 row.id를 사용합니다.
+    const tempId = String(row.id); 
     
     card.innerHTML = `
       <div class="t-rec-top">
@@ -963,6 +954,8 @@ function renderArchive() {
     
     tempContainer.appendChild(card);
   });
+
+  // ... (이후 자율점검 목록 렌더링 코드는 기존과 동일하게 유지하시면 됩니다.)
 
   // 2. 주간 자율점검 목록 렌더링 (날짜 클릭 상세 보기 연동)
   const checkContainer = document.getElementById("archive-check-list");
@@ -1135,8 +1128,8 @@ function printSelectedTempRecords() {
     return;
   }
   
-  // 선택된 기록들만 필터링 후 시간순 정렬
-  const records = tempDb.filter(r => selectedIds.includes(r.date + "_" + r.slot))
+  // ✅ 수정됨: 선택된 기록들만 필터링 후 시간순 정렬 (고유 ID 매칭)
+  const records = tempDb.filter(r => selectedIds.includes(String(r.id)))
                         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const printArea = document.getElementById("print-area");
@@ -1223,10 +1216,8 @@ function printSelectedTempRecords() {
     </table>
   `;
 
-  // DOM 렌더링 완료 후 print (즉시 호출 시 빈 출력 방지)
   setTimeout(() => {
     window.print();
-    // 출력 완료 후 print-area 초기화
     const cleanup = () => { printArea.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
     window.addEventListener("afterprint", cleanup);
   }, 300);
@@ -1384,8 +1375,8 @@ function deleteSelectedTempRecords() {
     return;
   }
 
-  // [패치 ⑤-A] 화면 ID(date_slot) → 시트 ID(TMP-xxx) 매핑 후 Sheets 영구 삭제
-  const recordsToDelete = tempDb.filter(r => selectedIds.includes(r.date + "_" + r.slot));
+  // ✅ 수정됨: 화면 ID 매핑 후 Sheets 영구 삭제 (고유 ID 사용)
+  const recordsToDelete = tempDb.filter(r => selectedIds.includes(String(r.id)));
   const sheetIds = recordsToDelete.map(r => r.id).filter(Boolean);
 
   (async () => {
@@ -1397,7 +1388,8 @@ function deleteSelectedTempRecords() {
       return;
     }
 
-    tempDb = tempDb.filter(r => !selectedIds.includes(r.date + "_" + r.slot));
+    // ✅ 수정됨: 로컬 데이터베이스에서도 고유 ID를 기준으로 걸러냅니다.
+    tempDb = tempDb.filter(r => !selectedIds.includes(String(r.id)));
 
     document.getElementById("chk-temp-all").checked = false;
     renderArchive();
@@ -1615,7 +1607,9 @@ function _renderDashTempList() {
   box.innerHTML = tempDb.map(r => {
     const slotKor = r.slot === "AM" ? "오전 10시" : "오후 2시";
     const dateShort = r.date.substring(5).replace("-", ".");
-    const tempId = r.date + "_" + r.slot;
+    // ✅ 수정됨: 대시보드 리스트에도 고유 ID 할당
+    const tempId = String(r.id);
+    
     const badgeCls = r.stage === '정상' ? 'badge-normal'
                    : r.stage === '관심' ? 'badge-interest'
                    : r.stage === '주의' ? 'badge-attention'
