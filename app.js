@@ -799,8 +799,8 @@ async function loadFromSheets() {
         id: String(pick(r, "ID")),
         date: _formatDateOnly(pick(r, "기록일시")),
         slot: pick(r, "시간슬롯") || "AM",
-        // ✅ 수정됨: 사용자가 입력한 측정시간을 우선적으로 매핑합니다.
-        time: pick(r, "측정시간") || pick(r, "시간") || _formatTimeOnly(pick(r, "기록일시")),
+        // ✅ [수정 완료] 구글 시트의 자동 생성 '기록일시' 대신 사용자가 입력한 '시간'을 최우선으로 매핑합니다.
+        time: pick(r, "측정시간") || pick(r, "시간") || pick(r, "time") || _formatTimeOnly(pick(r, "기록일시")),
         inspector: pick(r, "측정자") || "보건관리자",
         location: pick(r, "측정 장소") || "",
         temp: parseFloat(pick(r, "기온")) || 0,
@@ -1121,6 +1121,9 @@ function triggerMockGas(record) {
 // =========================================================================
 // [12. 인쇄 (PDF) 기능 - 일괄 다중 출력 렌더링]
 // =========================================================================
+// =========================================================================
+// [12. 인쇄 (PDF) 기능 - 일괄 다중 출력 렌더링]
+// =========================================================================
 function printSelectedTempRecords() {
   const selectedIds = Array.from(document.querySelectorAll(".chk-temp-print:checked")).map(chk => chk.getAttribute("data-id"));
   if (selectedIds.length === 0) {
@@ -1128,9 +1131,13 @@ function printSelectedTempRecords() {
     return;
   }
   
-  // ✅ 수정됨: 선택된 기록들만 필터링 후 시간순 정렬 (고유 ID 매칭)
+  // ✅ [수정 완료] 고유 ID로 정확히 매칭하고, 날짜와 시간을 결합해 과거순(오름차순)으로 정렬합니다.
   const records = tempDb.filter(r => selectedIds.includes(String(r.id)))
-                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+                        .sort((a, b) => {
+                            const dtA = `${a.date} ${a.time}`;
+                            const dtB = `${b.date} ${b.time}`;
+                            return dtA.localeCompare(dtB);
+                        });
 
   const printArea = document.getElementById("print-area");
   
@@ -1216,8 +1223,10 @@ function printSelectedTempRecords() {
     </table>
   `;
 
+  // DOM 렌더링 완료 후 print (즉시 호출 시 빈 출력 방지)
   setTimeout(() => {
     window.print();
+    // 출력 완료 후 print-area 초기화
     const cleanup = () => { printArea.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
     window.addEventListener("afterprint", cleanup);
   }, 300);
