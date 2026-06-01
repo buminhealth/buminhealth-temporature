@@ -899,7 +899,7 @@ function _formatTimeOnly(val) {
   return `${h}:${mn}`;
 }
 
-// 보관소 리스트 렌더링 (체감 기록 목록 부분만 덮어쓰기)
+// 보관소 리스트 렌더링
 function renderArchive() {
   // 1. 체감 기록 목록 렌더링
   const tempContainer = document.getElementById("archive-temp-list");
@@ -924,10 +924,10 @@ function renderArchive() {
     const card = document.createElement("div");
     card.className = "temp-record-item-card";
     
-    const slotKor = row.slot === "AM" ? "오전 10시" : "오후 2시";
+    // ✅ 수정: "오전 10시/오후 2시" 강제 텍스트를 "오전/오후"로만 깔끔하게 변경
+    const slotKor = row.slot === "AM" ? "오전" : "오후";
     const dateFormatted = row.date.substring(5).replace('-', '.');
-    // ✅ 수정됨: 고유한 row.id를 사용합니다.
-    const tempId = String(row.id); 
+    const tempId = String(row.id);
     
     card.innerHTML = `
       <div class="t-rec-top">
@@ -935,7 +935,8 @@ function renderArchive() {
           <input type="checkbox" class="chk-item-print chk-temp-print" data-id="${tempId}">
           <i class="fa-regular fa-calendar-check" style="margin-left: 5px; margin-right: 5px;"></i> ${dateFormatted} (${slotKor})
         </span>
-        <span class="tr-time">${row.time} 전송</span>
+        <!-- ✅ 수정: '전송' 텍스트를 '측정'으로 변경하고, 실제 입력된 시간을 파란색으로 강조 -->
+        <span class="tr-time" style="color:#2563eb; font-weight:600;">${row.time} 측정</span>
       </div>
       <div class="t-rec-body">
         <span class="tr-vals">${row.location}</span>
@@ -954,6 +955,8 @@ function renderArchive() {
     
     tempContainer.appendChild(card);
   });
+
+  // ... (이후 2. 주간 자율점검 목록 렌더링 코드는 기존 그대로 유지하세요)
 
   // ... (이후 자율점검 목록 렌더링 코드는 기존과 동일하게 유지하시면 됩니다.)
 
@@ -1618,9 +1621,9 @@ function _renderDashTempList() {
 
   // 최신순 그대로 (이미 loadFromSheets에서 정렬됨)
   box.innerHTML = tempDb.map(r => {
-    const slotKor = r.slot === "AM" ? "오전 10시" : "오후 2시";
+    // ✅ 수정: 대시보드 리스트에도 "오전 10시" 텍스트를 빼고 "오전 10:31" 형태로 출력되게 변경
+    const slotKor = r.slot === "AM" ? "오전" : "오후";
     const dateShort = r.date.substring(5).replace("-", ".");
-    // ✅ 수정됨: 대시보드 리스트에도 고유 ID 할당
     const tempId = String(r.id);
     
     const badgeCls = r.stage === '정상' ? 'badge-normal'
@@ -1632,7 +1635,7 @@ function _renderDashTempList() {
       <div class="dash-arc-item">
         <input type="checkbox" class="dash-chk-temp" data-id="${tempId}">
         <div class="dash-arc-item-body">
-          <div class="dash-arc-item-title">${dateShort} (${slotKor}) · ${_dashTruncate(r.location, 14)}</div>
+          <div class="dash-arc-item-title">${dateShort} (${slotKor} ${r.time}) · ${_dashTruncate(r.location, 14)}</div>
           <div class="dash-arc-item-sub">${(r.temp||0).toFixed(1)}℃ / ${r.humidity}% · 체감 ${(r.perceived||0).toFixed(1)}℃</div>
         </div>
         <div class="dash-arc-item-actions">
