@@ -1124,6 +1124,9 @@ function triggerMockGas(record) {
 // =========================================================================
 // [12. 인쇄 (PDF) 기능 - 일괄 다중 출력 렌더링]
 // =========================================================================
+// =========================================================================
+// [12. 인쇄 (PDF) 기능 - 일괄 다중 출력 렌더링]
+// =========================================================================
 function printSelectedTempRecords() {
   const selectedIds = Array.from(document.querySelectorAll(".chk-temp-print:checked")).map(chk => chk.getAttribute("data-id"));
   if (selectedIds.length === 0) {
@@ -1131,7 +1134,7 @@ function printSelectedTempRecords() {
     return;
   }
   
-  // ✅ [수정 완료] 고유 ID로 정확히 매칭하고, 날짜와 시간을 결합해 과거순(오름차순)으로 정렬합니다.
+  // 고유 ID 매칭 및 날짜와 시간을 결합해 과거순(오름차순)으로 정렬
   const records = tempDb.filter(r => selectedIds.includes(String(r.id)))
                         .sort((a, b) => {
                             const dtA = `${a.date} ${a.time}`;
@@ -1157,11 +1160,13 @@ function printSelectedTempRecords() {
     const isWarning = r.perceived >= 35 && r.perceived < 38;
     const isDanger = r.perceived >= 38;
 
+    // 🌟 [수정 완료] 10시/14시 강제 고정을 해제하고, 앱 UI에서 사용자가 직접 입력/수정한 시간(r.time)을 그대로 출력합니다.
+    const printTime = r.time;
+
     rowsHtml += `
       <tr>
         <td>${r.date.substring(5).replace('-', '.')}</td>
-        <td>${r.time}</td>
-        <td style="font-size:9px;">${r.location || ''}</td>
+        <td>${printTime}</td> <td style="font-size:9px;">${r.location || ''}</td>
         <td>${r.temp.toFixed(1)}</td>
         <td>${r.humidity}</td>
         <td>${r.perceived.toFixed(2)}</td>
@@ -1223,10 +1228,9 @@ function printSelectedTempRecords() {
     </table>
   `;
 
-  // DOM 렌더링 완료 후 print (즉시 호출 시 빈 출력 방지)
+  // DOM 렌더링 완료 후 print
   setTimeout(() => {
     window.print();
-    // 출력 완료 후 print-area 초기화
     const cleanup = () => { printArea.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
     window.addEventListener("afterprint", cleanup);
   }, 300);
