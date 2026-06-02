@@ -581,7 +581,6 @@ function submitRecordFinal() {
 
   const newId = `TMP-${100 + tempDb.length + 1}`;
   
-  // 선택된 날짜 가져오기 (없으면 당일)
   const now = new Date();
   let dateStr = document.getElementById("m-input-record-date").value;
   if (!dateStr) {
@@ -590,19 +589,20 @@ function submitRecordFinal() {
     const d = String(now.getDate()).padStart(2, '0');
     dateStr = `${y}-${m}-${d}`;
   }
-  // 사용자가 입력한 시간 필드 사용 (없으면 현재 시각으로 폴백)
   let timeStr = document.getElementById("m-input-record-time")?.value || "";
   if (!timeStr) {
     timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
   }
-  // 시간 기준으로 AM/PM 자동 판별
   const timeHour = parseInt(timeStr.split(':')[0], 10);
   const derivedSlot = timeHour < 12 ? "AM" : "PM";
+
+  // 🌟 [핵심 보완] 백엔드(GAS) 열을 수정할 수 없으므로, 기존 저장되던 slot 변수에 측정시간을 합쳐서(Packing) 보냅니다.
+  const packedSlot = `${derivedSlot}|${timeStr}`;
 
   const record = {
     id: newId,
     date: dateStr,
-    slot: derivedSlot,
+    slot: packedSlot, // 구글 시트 '시간슬롯' 열에 "AM|10:31" 형태로 안전하게 저장됨
     time: timeStr,
     inspector: activeInspector,
     location: selectedLocation,
@@ -615,17 +615,15 @@ function submitRecordFinal() {
     remarks: activeRemarks || "모바일에서 작성 완료 (이상 없음)"
   };
 
-  // 구글 시트 데이터 전송 에뮬레이터 로딩 루프
   const submitBtn = document.getElementById("btn-final-submit");
   submitBtn.disabled = true;
   submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sheets 데이터 적재 중...`;
 
   setTimeout(async () => {
-    // [패치 ④-A] Google Sheets 영구 저장
     try {
       const res = await gasCall({ action: "create", target: "temp", record: record });
       if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
-      if (res.id) record.id = res.id;  // 서버가 발급한 ID로 갱신
+      if (res.id) record.id = res.id;
     } catch (err) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> 구글 시트 전송 & 관리자 경고 메일 발송`;
@@ -633,30 +631,26 @@ function submitRecordFinal() {
       return;
     }
 
-    tempDb.unshift(record);
+    // 로컬 메모리에는 순수 값으로 복원하여 저장
+    const localRecord = { ...record, slot: derivedSlot };
+    tempDb.unshift(localRecord);
     
-    // 모달 닫기 및 폼 초기화
     submitBtn.disabled = false;
     submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> 구글 시트 전송 & 관리자 경고 메일 발송`;
     document.getElementById("result-confirm-modal").classList.remove("active");
     document.getElementById("m-input-remarks").value = "";
     activeRemarks = "";
 
-    // 보관소 탭으로 활성화 이동
     document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
     document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
-    
     document.querySelector(".nav-item[data-screen='screen-archive']").classList.add("active");
     document.getElementById("screen-archive").classList.add("active");
 
-    // 보관소 갱신
     renderArchive();
     updateMissingRecordsWidget();
+    triggerMockGas(localRecord);
 
-    // GAS 백그라운드 경고 메일 전송
-    triggerMockGas(record);
-
-    alert(`[기록 저장 완료] ${selectedLocation}의 오전/오후 체감온도 기록지가 성공적으로 저장되었습니다.`);
+    alert(`[기록 저장 완료] ${selectedLocation} 체감온도 기록지가 성공적으로 저장되었습니다.`);
   }, 1000);
 }
 
@@ -795,23 +789,39 @@ async function loadFromSheets() {
   if (tempRes && tempRes.ok && Array.isArray(tempRes.records)) {
     tempDb = tempRes.records
       .filter(r => pick(r, "ID"))
-      .map(r => ({
-        id: String(pick(r, "ID")),
-        date: _formatDateOnly(pick(r, "기록일시")),
-        slot: pick(r, "시간슬롯") || "AM",
-        // ✅ [수정 완료] 구글 시트의 자동 생성 '기록일시' 대신 사용자가 입력한 '시간'을 최우선으로 매핑합니다.
-        time: pick(r, "측정시간") || pick(r, "시간") || pick(r, "time") || _formatTimeOnly(pick(r, "기록일시")),
-        inspector: pick(r, "측정자") || "보건관리자",
-        location: pick(r, "측정 장소") || "",
-        temp: parseFloat(pick(r, "기온")) || 0,
-        humidity: parseFloat(pick(r, "습도")) || 0,
-        perceived: parseFloat(pick(r, "체감온도")) || 0,
-        stage: pick(r, "폭염 단계") || "정상",
-        action: koshaActions[pick(r, "폭염 단계")] || koshaActions["정상"],
-        signature: pick(r, "서명") || dummySignature,
-        remarks: pick(r, "특이사항") || ""
-      }))
-      .sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot));
+      .map(r => {
+        // 🌟 [핵심 보완] 시간슬롯(AM/PM)에 안전하게 숨겨둔 실제 측정시간을 분리해 냅니다.
+        const rawSlot = String(pick(r, "시간슬롯") || "AM");
+        let realSlot = rawSlot;
+        let realTime = _formatTimeOnly(pick(r, "기록일시")); // 합쳐둔 시간이 없으면 기존 시스템 전송시간 폴백
+
+        if (rawSlot.includes("|")) {
+          const parts = rawSlot.split("|");
+          realSlot = parts[0]; // AM 또는 PM
+          realTime = parts[1]; // 사용자가 직접 입력한 시간 (예: 10:31)
+        }
+
+        return {
+          id: String(pick(r, "ID")),
+          date: _formatDateOnly(pick(r, "기록일시")),
+          slot: realSlot,
+          time: realTime,
+          inspector: pick(r, "측정자") || "보건관리자",
+          location: pick(r, "측정 장소") || "",
+          temp: parseFloat(pick(r, "기온")) || 0,
+          humidity: parseFloat(pick(r, "습도")) || 0,
+          perceived: parseFloat(pick(r, "체감온도")) || 0,
+          stage: pick(r, "폭염 단계") || "정상",
+          action: koshaActions[pick(r, "폭염 단계")] || koshaActions["정상"],
+          signature: pick(r, "서명") || dummySignature,
+          remarks: pick(r, "특이사항") || ""
+        };
+      })
+      .sort((a, b) => {
+        const dtA = `${a.date} ${a.time}`;
+        const dtB = `${b.date} ${b.time}`;
+        return dtA.localeCompare(dtB); // 날짜+시간 기준 오름차순(과거순) 완벽 정렬
+      });
     console.log(`[로드:체감] 매핑 후 ${tempDb.length}건`);
   } else {
     console.warn("[로드:체감] 응답 비정상 또는 빈 결과");
@@ -840,10 +850,10 @@ async function loadFromSheets() {
         remarks: pick(r, "특이사항") || "",
         signature: pick(r, "서명") || ""
       }))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => a.date.localeCompare(b.date));
     console.log(`[로드:자율점검] 매핑 후 ${checklistDb.length}건`);
   } else {
-    console.warn("[로드:자율점검] 응답 비정상 또는 빈 결과:", chkSettled);
+    console.warn("[로드:자율점검] 응답 비정상 또는 빈 결과");
   }
 
   // ── TBM 매핑 ──
@@ -866,12 +876,13 @@ async function loadFromSheets() {
         remarks: pick(r, "특이사항") || "",
         signature: pick(r, "서명") || ""
       }))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => a.date.localeCompare(b.date));
     console.log(`[로드:TBM] 매핑 후 ${tbmDb.length}건`);
   } else {
     console.warn("[로드:TBM] 응답 비정상 또는 빈 결과:", tbmSettled);
   }
 
+  // 전체 실패 시에만 사용자 알림
   if (!tempRes && !chkRes && !tbmRes) {
     alert("⚠️ Google Sheets 데이터 로드 실패\n네트워크 또는 GAS Web App URL을 확인해주세요.");
   }
