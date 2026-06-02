@@ -981,4 +981,215 @@ function _renderDashTempList() {
     const dateShort = r.date.substring(5).replace("-", ".");
     const tempId = String(r.id);
     const badgeCls = r.stage === '정상' ? 'badge-normal' : r.stage === '관심' ? 'badge-interest' : r.stage === '주의' ? 'badge-attention' : r.stage === '경고' ? 'badge-warning' : 'badge-danger';
-    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-temp" data-id="${tempId}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${dateShort} (${slotKor} ${r.time}) · ${_dashTruncate(r.location, 14)}</div><div class="dash-arc-item-sub">${(r.temp||0).toFixed(1)}℃ / ${r.humidity}% · 체감 ${(r.perceived||0).toFixed(1)}℃</div></div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${r.stage}</span><button class="dash-arc-btn
+    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-temp" data-id="${tempId}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${dateShort} (${slotKor} ${r.time}) · ${_dashTruncate(r.location, 14)}</div><div class="dash-arc-item-sub">${(r.temp||0).toFixed(1)}℃ / ${r.humidity}% · 체감 ${(r.perceived||0).toFixed(1)}℃</div></div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${r.stage}</span><button class="dash-arc-btn-print" onclick="dashPrintSingleTemp('${tempId}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+  }).join("");
+  _wireDashAllCheck("dash-chk-temp-all", "dash-chk-temp");
+}
+
+function _renderDashCheckList() {
+  const box = document.getElementById("dash-check-list"); if (!box) return;
+  _setText("dash-check-count", checklistDb.length + "건");
+  if (checklistDb.length === 0) { box.innerHTML = `<div class="dash-empty">자율점검 이력이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-check-all", "dash-chk-check"); return; }
+  box.innerHTML = checklistDb.map(r => {
+    const fields = ["water_supply","shade_cooling","shade_minimize","rest_facility","rest_31","rest_33","cooling_gear","emergency_unconscious","emergency_conscious","other_thermometer","other_education","other_record","other_sensitive"];
+    const needCount = fields.filter(f => r[f] === "개선필요").length;
+    const stateLabel = needCount === 0 ? `<span class="badge badge-normal">정상 (전 항목 적정)</span>` : `<span class="badge badge-warning">개선필요 ${needCount}건</span>`;
+    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-check" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · 주간 자율점검표</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions">${stateLabel}<button class="dash-arc-btn-print" onclick="dashPrintSingleCheck('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+  }).join("");
+  _wireDashAllCheck("dash-chk-check-all", "dash-chk-check");
+}
+
+function _wireDashAllCheck(allId, itemClass) { const allChk = document.getElementById(allId); if (!allChk) return; allChk.onchange = () => { document.querySelectorAll("." + itemClass).forEach(c => c.checked = allChk.checked); }; allChk.checked = false; }
+function dashDeleteSelectedTemp() { const ids = Array.from(document.querySelectorAll(".dash-chk-temp:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("삭제할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-temp-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); deleteSelectedTempRecords(); }
+function dashDeleteSelectedCheck() { const ids = Array.from(document.querySelectorAll(".dash-chk-check:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("삭제할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-check-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); deleteSelectedChecklists(); }
+function dashPrintSelectedTemp() { const ids = Array.from(document.querySelectorAll(".dash-chk-temp:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("출력할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-temp-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); printSelectedTempRecords(); }
+function dashPrintSelectedCheck() { const ids = Array.from(document.querySelectorAll(".dash-chk-check:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("출력할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-check-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); printSelectedChecklists(); }
+function dashPrintSingleTemp(tempId) { document.querySelectorAll(".chk-temp-print").forEach(c => c.checked = false); const target = document.querySelector(`.chk-temp-print[data-id="${tempId}"]`); if (target) target.checked = true; printSelectedTempRecords(); }
+function dashPrintSingleCheck(checkId) { document.querySelectorAll(".chk-check-print").forEach(c => c.checked = false); const target = document.querySelector(`.chk-check-print[data-id="${checkId}"]`); if (target) target.checked = true; printSelectedChecklists(); }
+
+function _dashYmd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function _dashStageOf(perceived) { if (perceived >= 38) return "위험"; if (perceived >= 35) return "경고"; if (perceived >= 33) return "주의"; if (perceived >= 31) return "관심"; return "정상"; }
+function _dashTruncate(s, n) { s = String(s || ""); return s.length > n ? s.substring(0, n) + "…" : s; }
+function _setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+// =========================================================================
+// [8] TBM 자가진단 로직
+// =========================================================================
+function initTbmScreen() {
+  const container = document.getElementById("tbm-items-container"); if (!container) return;
+  container.querySelectorAll(".chk-item-row").forEach(row => {
+    row.querySelectorAll(".yn-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        row.querySelectorAll(".yn-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+  });
+  const submitBtn = document.getElementById("btn-submit-tbm");
+  if (submitBtn) submitBtn.addEventListener("click", () => { signContext = "tbm"; openSignModal(); });
+  const allChk = document.getElementById("chk-tbm-all");
+  if (allChk) { allChk.addEventListener("change", () => { document.querySelectorAll(".chk-tbm-print").forEach(c => c.checked = allChk.checked); }); }
+  const btnPrint = document.getElementById("btn-print-selected-tbm"); if (btnPrint) btnPrint.addEventListener("click", printSelectedTbm);
+  const btnDelete = document.getElementById("btn-delete-selected-tbm"); if (btnDelete) btnDelete.addEventListener("click", deleteSelectedTbm);
+}
+
+function submitTbm() {
+  const submitBtn = document.getElementById("btn-submit-tbm");
+  const dateStr = document.getElementById("m-input-tbm-date").value;
+  const deptEl = document.getElementById("m-input-tbm-dept");
+  const deptStr = deptEl ? deptEl.value : "";
+  const remarks = document.getElementById("tbm-input-remarks").value || "";
+  if (!dateStr) { alert("작성 날짜를 선택해주세요."); return; }
+
+  // ✅ 시트 열("작성날짜", "작성부서")에 바로 전송되도록 업데이트
+  const record = { 
+    date: dateStr, 
+    "작성날짜": dateStr,  
+    dept: deptStr, 
+    "작성부서": deptStr,  
+    inspector: "보건관리자", 
+    remarks: remarks, 
+    signature: savedSignatureDataUrl 
+  };
+  
+  TBM_QUESTIONS.forEach(q => {
+    const row = document.querySelector(`#tbm-items-container .chk-item-row[data-key="${q.key}"]`);
+    const active = row ? row.querySelector(".yn-btn.active") : null;
+    record[q.key] = active ? active.getAttribute("data-val") : q.defaultVal;
+  });
+
+  const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && record[q.key] === "예").length;
+  const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && record[q.key] === "아니오").length;
+
+  if (riskHits >= 2 && !confirm(`⚠️ 위험 신호 ${riskHits}건 감지됨\n그래도 제출하시겠습니까?`)) return;
+  if (pledgeMiss > 0 && !confirm(`⚠️ 안전수칙 서약 미이행 ${pledgeMiss}건\n그래도 제출하시겠습니까?`)) return;
+
+  submitBtn.disabled = true; submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 구글 시트 저장 중...`;
+  setTimeout(async () => {
+    try {
+      const res = await gasCall({ action: "create", target: "tbm", record: record });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+      if (res.id) record.id = res.id;
+    } catch (err) {
+      submitBtn.disabled = false; submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
+      alert("⚠️ 구글 시트 저장 실패\n" + err.message); return;
+    }
+    tbmDb.unshift(record);
+    submitBtn.disabled = false; submitBtn.innerHTML = `<i class="fa-solid fa-pen-nib"></i> 기록 및 전자 서명하기`;
+    
+    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
+    document.querySelector(".nav-item[data-screen='screen-archive']").classList.add("active");
+    document.getElementById("screen-archive").classList.add("active");
+
+    document.querySelectorAll(".archive-sub-tabs .sub-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".archive-sub-pane").forEach(p => p.classList.remove("active"));
+    if (document.querySelector(".sub-tab-btn[data-sub='sub-tbm']")) document.querySelector(".sub-tab-btn[data-sub='sub-tbm']").classList.add("active");
+    if (document.getElementById("sub-tbm")) document.getElementById("sub-tbm").classList.add("active");
+
+    renderArchive();
+    alert(`[TBM 완료] ${dateStr} 작업 전 안전점검이 등록되었습니다.`);
+  }, 600);
+}
+
+function renderTbmArchiveList() {
+  const box = document.getElementById("archive-tbm-list"); if (!box) return;
+  if (tbmDb.length === 0) { box.innerHTML = `<div style="padding: 30px 0; text-align: center; color: var(--text-muted); font-size: 13px;">TBM 자가진단 기록이 아직 없습니다.</div>`; return; }
+  box.innerHTML = tbmDb.map(r => {
+    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length;
+    const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
+    const overall = (riskHits >= 1 || pledgeMiss > 0) ? '주의' : '정상';
+    const badgeCls = (riskHits >= 1 || pledgeMiss > 0) ? 'badge-attention' : 'badge-normal';
+    return `<div class="archive-card-compact"><div class="acc-left"><input type="checkbox" class="chk-tbm-print" data-id="${r.id}"><span class="acc-date">${r.date}</span><span class="card-slot-chip">TBM</span></div><div class="acc-mid"><img class="acc-sign" src="${r.signature || dummySignature}" alt="서명"></div><div class="acc-right"><span class="badge ${badgeCls}">${overall}</span><button class="acc-pdf-btn" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+  }).join("");
+}
+
+function deleteSelectedTbm() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-tbm-print:checked")).map(chk => chk.getAttribute("data-id"));
+  if (selectedIds.length === 0) { alert("삭제할 TBM 기록을 선택해주세요."); return; }
+  if (!confirm(`선택한 TBM 기록 ${selectedIds.length}건을 영구 삭제하시겠습니까?`)) return;
+  (async () => {
+    try {
+      const res = await gasCall({ action: "delete", target: "tbm", ids: selectedIds });
+      if (!res || !res.ok) throw new Error((res && res.error) || "응답 오류");
+    } catch (err) { alert("⚠️ 구글 시트 삭제 실패\n" + err.message); return; }
+    tbmDb = tbmDb.filter(r => !selectedIds.includes(r.id.toString()));
+    if (document.getElementById("chk-tbm-all")) document.getElementById("chk-tbm-all").checked = false;
+    renderArchive();
+    alert(`${selectedIds.length}건의 TBM 기록이 삭제되었습니다.`);
+  })();
+}
+
+function printSelectedTbm() {
+  const selectedIds = Array.from(document.querySelectorAll(".chk-tbm-print:checked")).map(chk => chk.getAttribute("data-id"));
+  if (selectedIds.length === 0) { alert("출력할 TBM 기록을 선택해주세요."); return; }
+  _buildTbmPrintAndPrint(selectedIds);
+}
+
+function printSingleTbm(tbmId) { _buildTbmPrintAndPrint([tbmId]); }
+
+function _buildTbmPrintAndPrint(ids) {
+  // 🌟 고유 ID 매칭 및 오름차순(과거순) 완벽 정렬
+  const records = tbmDb.filter(r => ids.includes(r.id.toString())).sort((a, b) => (a.date||'').localeCompare(b.date||''));
+  if (records.length === 0) return;
+
+  const pages = [];
+  for (let i = 0; i < records.length; i += 2) pages.push(records.slice(i, i + 2));
+
+  const buildOne = (r) => {
+    const rows = TBM_QUESTIONS.map(q => {
+      const val = r[q.key]; const isAbnormal = (q.riskOnYes && val === "예") || (q.category === "pledge" && val === "아니오");
+      return `<tr><td style="text-align:center;font-weight:600;padding:5px 4px;width:38px;">${q.key.toUpperCase()}</td><td style="padding:5px 7px;text-align:left;line-height:1.4;"><strong>${q.label}</strong> ${q.text}</td><td style="text-align:center;font-weight:800;padding:5px 4px;width:44px;color:${isAbnormal ? '#dc2626' : '#0f172a'};">${val}</td></tr>`;
+    }).join("");
+    return `
+      <div class="tbm-block">
+        <div class="tbm-title">TBM (Tool Box Meeting) 자가진단 체크리스트</div>
+        <div class="tbm-sub">작업 전 안전회의 — 부민병원그룹</div>
+        <table class="tbm-meta">
+          <colgroup><col style="width:13%"><col style="width:22%"><col style="width:13%"><col style="width:26%"><col style="width:13%"><col style="width:13%"></colgroup>
+          <tr>
+            <td class="meta-hd">작성일</td><td class="meta-val">${r.date}</td>
+            <td class="meta-hd">서명</td><td class="meta-val">${r.signature ? `<img src="${r.signature}" style="height:26px;max-width:90px;object-fit:contain;vertical-align:middle;">` : '-'}</td>
+            <td class="meta-hd">작성 부서</td><td class="meta-val">${r.dept || '-'}</td>
+          </tr>
+        </table>
+        <table class="tbm-body">
+          <thead><tr><th style="width:38px;">No.</th><th style="text-align:left;">자가진단 항목</th><th style="width:44px;">결과</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${r.remarks ? `<div class="tbm-remarks"><strong>특이사항:</strong> ${r.remarks}</div>` : ''}
+      </div>`;
+  };
+
+  const html = pages.map((pair, pi) => {
+    const inner = pair.map(r => buildOne(r)).join('<div class="tbm-divider"></div>');
+    return `<div class="tbm-page${pi === pages.length - 1 ? '' : ' page-break'}">${inner}</div>`;
+  }).join("");
+
+  const style = `@page { size: A4 portrait; margin: 10mm 12mm; } * { box-sizing: border-box; } body { font-family: 'Pretendard', sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 10px; } .tbm-page { width: 100%; } .page-break { page-break-after: always; } .tbm-block { width: 100%; margin-bottom: 0; } .tbm-divider { height: 8px; border-top: 1.5px dashed #94a3b8; margin: 7px 0; } .tbm-title { text-align:center; font-size:14px; font-weight:800; margin:0 0 2px 0; } .tbm-sub { text-align:center; font-size:9px; color:#64748b; margin:0 0 6px 0; } table.tbm-meta { width:100%; border-collapse:collapse; margin-bottom:5px; font-size:10px; } table.tbm-meta td { border:1px solid #94a3b8; padding:5px 6px; } td.meta-hd { background:#e2e8f0; font-weight:700; text-align:center; white-space:nowrap; } table.tbm-body { width:100%; border-collapse:collapse; font-size:10px; } table.tbm-body th { background:#0891b2; color:#fff; padding:5px 4px; border:1px solid #94a3b8; text-align:center; } table.tbm-body td { border:1px solid #cbd5e1; vertical-align:middle; } table.tbm-body tbody tr td { height:22px; } .tbm-remarks { margin-top:5px; padding:5px 8px; border:1px dashed #cbd5e1; font-size:9.5px; }`;
+
+  const w = window.open("", "TBM_PRINT", "width=900,height=1200");
+  if (!w) {
+    const pa = document.getElementById("print-area");
+    pa.innerHTML = `<div style="font-family:'Pretendard',sans-serif;color:#0f172a;">${html}</div>`;
+    setTimeout(() => { window.print(); const cleanup = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", cleanup); }; window.addEventListener("afterprint", cleanup); }, 300);
+    return;
+  }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TBM 출력</title><style>${style}</style></head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`); w.document.close();
+}
+
+function _renderDashTbmList() {
+  const box = document.getElementById("dash-tbm-list"); if (!box) return;
+  _setText("dash-tbm-count", tbmDb.length + "건");
+  if (tbmDb.length === 0) { box.innerHTML = `<div class="dash-empty">TBM 기록이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm"); return; }
+  box.innerHTML = tbmDb.map(r => {
+    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length; const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
+    const badgeCls = riskHits >= 2 ? 'badge-danger' : riskHits >= 1 ? 'badge-warning' : pledgeMiss > 0 ? 'badge-attention' : 'badge-normal';
+    const badgeLbl = riskHits >= 1 ? `위험 ${riskHits}건` : pledgeMiss > 0 ? `미이행 ${pledgeMiss}건` : '정상';
+    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-tbm" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · TBM 자가진단</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${badgeLbl}</span><button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+  }).join("");
+  _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
+}
+
+function dashDeleteSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("삭제할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); deleteSelectedTbm(); }
+function dashPrintSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("출력할 기록을 선택해주세요."); return; } printSelectedTbm.call(null, ids); document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); printSelectedTbm(); }
