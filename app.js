@@ -790,20 +790,22 @@ async function loadFromSheets() {
     tempDb = tempRes.records
       .filter(r => pick(r, "ID"))
       .map(r => {
-        // 🌟 [핵심 보완] 시간슬롯(AM/PM)에 안전하게 숨겨둔 실제 측정시간을 분리해 냅니다.
+        // 🌟 [이전 수정 반영] 시간슬롯에 안전하게 숨겨둔 '측정시간'과 '지정날짜'를 분리
         const rawSlot = String(pick(r, "시간슬롯") || "AM");
         let realSlot = rawSlot;
-        let realTime = _formatTimeOnly(pick(r, "기록일시")); // 합쳐둔 시간이 없으면 기존 시스템 전송시간 폴백
+        let realTime = _formatTimeOnly(pick(r, "기록일시")); // 폴백용
+        let realDate = _formatDateOnly(pick(r, "기록일시")); // 폴백용
 
         if (rawSlot.includes("|")) {
           const parts = rawSlot.split("|");
-          realSlot = parts[0]; // AM 또는 PM
-          realTime = parts[1]; // 사용자가 직접 입력한 시간 (예: 10:31)
+          realSlot = parts[0]; 
+          if (parts.length > 1) realTime = parts[1]; // 수동 입력한 시간
+          if (parts.length > 2) realDate = parts[2]; // 지정한 날짜
         }
 
         return {
           id: String(pick(r, "ID")),
-          date: _formatDateOnly(pick(r, "기록일시")),
+          date: realDate, 
           slot: realSlot,
           time: realTime,
           inspector: pick(r, "측정자") || "보건관리자",
@@ -820,9 +822,8 @@ async function loadFromSheets() {
       .sort((a, b) => {
         const dtA = `${a.date} ${a.time}`;
         const dtB = `${b.date} ${b.time}`;
-        return dtA.localeCompare(dtB); // 날짜+시간 기준 오름차순(과거순) 완벽 정렬
+        return dtA.localeCompare(dtB); 
       });
-    console.log(`[로드:체감] 매핑 후 ${tempDb.length}건`);
   } else {
     console.warn("[로드:체감] 응답 비정상 또는 빈 결과");
   }
@@ -851,7 +852,6 @@ async function loadFromSheets() {
         signature: pick(r, "서명") || ""
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-    console.log(`[로드:자율점검] 매핑 후 ${checklistDb.length}건`);
   } else {
     console.warn("[로드:자율점검] 응답 비정상 또는 빈 결과");
   }
@@ -863,6 +863,8 @@ async function loadFromSheets() {
       .map(r => ({
         id: String(pick(r, "ID")),
         date: _formatDateOnly(pick(r, "작성일시")),
+        // 🌟 [추가된 부분] 시트에서 '작성부서' 또는 '부서' 열을 찾아 읽어옵니다.
+        dept: pick(r, "작성부서") || pick(r, "부서") || pick(r, "작성 부서") || "",
         inspector: pick(r, "작성자") || "보건관리자",
         q1: pick(r, "Q1_컨디션")      || "아니오",
         q2: pick(r, "Q2_건강상태")    || "아니오",
