@@ -1100,12 +1100,17 @@ function submitTbm() {
 function renderTbmArchiveList() {
   const box = document.getElementById("archive-tbm-list"); if (!box) return;
   if (tbmDb.length === 0) { box.innerHTML = `<div style="padding: 30px 0; text-align: center; color: var(--text-muted); font-size: 13px;">TBM 자가진단 기록이 아직 없습니다.</div>`; return; }
+  
   box.innerHTML = tbmDb.map(r => {
     const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length;
     const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
     const overall = (riskHits >= 1 || pledgeMiss > 0) ? '주의' : '정상';
     const badgeCls = (riskHits >= 1 || pledgeMiss > 0) ? 'badge-attention' : 'badge-normal';
-    return `<div class="archive-card-compact"><div class="acc-left"><input type="checkbox" class="chk-tbm-print" data-id="${r.id}"><span class="acc-date">${r.date}</span><span class="card-slot-chip">TBM</span></div><div class="acc-mid"><img class="acc-sign" src="${r.signature || dummySignature}" alt="서명"></div><div class="acc-right"><span class="badge ${badgeCls}">${overall}</span><button class="acc-pdf-btn" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+    
+    // 🌟 부서명이 있을 경우 스카이블루 칩 형태로 추가
+    const deptChip = r.dept ? `<span class="card-slot-chip" style="background-color: #e0f2fe; color: #0284c7; margin-left: 4px;">${r.dept}</span>` : "";
+    
+    return `<div class="archive-card-compact"><div class="acc-left"><input type="checkbox" class="chk-tbm-print" data-id="${r.id}"><span class="acc-date">${r.date}</span><span class="card-slot-chip">TBM</span>${deptChip}</div><div class="acc-mid"><img class="acc-sign" src="${r.signature || dummySignature}" alt="서명"></div><div class="acc-right"><span class="badge ${badgeCls}">${overall}</span><button class="acc-pdf-btn" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
   }).join("");
 }
 
@@ -1187,12 +1192,18 @@ function _renderDashTbmList() {
   const box = document.getElementById("dash-tbm-list"); if (!box) return;
   _setText("dash-tbm-count", tbmDb.length + "건");
   if (tbmDb.length === 0) { box.innerHTML = `<div class="dash-empty">TBM 기록이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm"); return; }
+  
   box.innerHTML = tbmDb.map(r => {
     const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length; const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
     const badgeCls = riskHits >= 2 ? 'badge-danger' : riskHits >= 1 ? 'badge-warning' : pledgeMiss > 0 ? 'badge-attention' : 'badge-normal';
     const badgeLbl = riskHits >= 1 ? `위험 ${riskHits}건` : pledgeMiss > 0 ? `미이행 ${pledgeMiss}건` : '정상';
-    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-tbm" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · TBM 자가진단</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${badgeLbl}</span><button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+    
+    // 🌟 부서명이 있을 경우 파란색 글씨로 뒤에 추가
+    const deptStr = r.dept ? ` <span style="color: #0ea5e9; font-weight: 600;">· ${r.dept}</span>` : "";
+    
+    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-tbm" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · TBM 자가진단${deptStr}</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${badgeLbl}</span><button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
   }).join("");
+  
   _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
 }
 
