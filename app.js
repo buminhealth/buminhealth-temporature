@@ -594,11 +594,16 @@ async function loadFromSheets() {
 
 function _formatDateOnly(val) {
   if (!val) return "";
-  const s = String(val);
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  
+  // 1. 서버 데이터를 날짜 객체로 먼저 변환하여 한국 시간(KST)을 완벽히 적용합니다.
   const d = new Date(val);
-  if (isNaN(d.getTime())) return s.substring(0, 10);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  
+  // 2. 혹시라도 날짜 형태가 아닌 일반 텍스트일 경우에만 글자를 잘라서 보여줍니다.
+  const s = String(val);
+  return s.substring(0, 10);
 }
 
 function _formatTimeOnly(val) {
