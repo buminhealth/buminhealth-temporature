@@ -93,10 +93,17 @@
             <h4><i class="fa-regular fa-calendar-check"></i> 체감기록 대장</h4>
             <span class="dash-card-tag" id="dash-temp-count">0건</span>
           </div>
-          <div class="dash-archive-actionbar">
-            <label class="dash-action-all">
-              <input type="checkbox" id="dash-chk-temp-all"> 전체 선택
-            </label>
+          <div class="dash-archive-actionbar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <label class="dash-action-all">
+                <input type="checkbox" id="dash-chk-temp-all"> 전체 선택
+              </label>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="date" class="m-input" id="dash-filter-temp-start" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="시작일">
+                <span style="font-size: 12px; color: var(--text-muted);">~</span>
+                <input type="date" class="m-input" id="dash-filter-temp-end" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="종료일">
+              </div>
+            </div>
             <div class="dash-action-buttons">
               <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedTemp()">
                 <i class="fa-solid fa-file-pdf"></i> 출력
@@ -117,10 +124,17 @@
             <h4><i class="fa-solid fa-users-gear"></i> TBM 이력</h4>
             <span class="dash-card-tag" id="dash-tbm-count">0건</span>
           </div>
-          <div class="dash-archive-actionbar">
-            <label class="dash-action-all">
-              <input type="checkbox" id="dash-chk-tbm-all"> 전체 선택
-            </label>
+          <div class="dash-archive-actionbar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <label class="dash-action-all">
+                <input type="checkbox" id="dash-chk-tbm-all"> 전체 선택
+              </label>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="date" class="m-input" id="dash-filter-tbm-start" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="시작일">
+                <span style="font-size: 12px; color: var(--text-muted);">~</span>
+                <input type="date" class="m-input" id="dash-filter-tbm-end" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="종료일">
+              </div>
+            </div>
             <div class="dash-action-buttons">
               <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedTbm()">
                 <i class="fa-solid fa-file-pdf"></i> 출력
@@ -141,16 +155,20 @@
             <h4><i class="fa-solid fa-file-shield"></i> 자율점검 이력</h4>
             <span class="dash-card-tag" id="dash-check-count">0건</span>
           </div>
-          <div class="dash-archive-actionbar">
-            <label class="dash-action-all">
-              <input type="checkbox" id="dash-chk-check-all"> 전체 선택
-            </label>
+          <div class="dash-archive-actionbar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <label class="dash-action-all">
+                <input type="checkbox" id="dash-chk-check-all"> 전체 선택
+              </label>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="date" class="m-input" id="dash-filter-check-start" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="시작일">
+                <span style="font-size: 12px; color: var(--text-muted);">~</span>
+                <input type="date" class="m-input" id="dash-filter-check-end" style="padding: 2px 5px; font-size: 11px; width: 105px; height: 26px;" title="종료일">
+              </div>
+            </div>
             <div class="dash-action-buttons">
               <button class="dash-act-btn dash-act-print" onclick="dashPrintSelectedCheck()">
                 <i class="fa-solid fa-file-pdf"></i> 출력
-              </button>
-              <button class="dash-act-btn dash-act-delete" onclick="dashDeleteSelectedCheck()">
-                <i class="fa-solid fa-trash"></i> 삭제
               </button>
             </div>
           </div>
