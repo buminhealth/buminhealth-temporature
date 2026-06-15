@@ -986,9 +986,21 @@ function _renderLineChart(labels, data, pointColors) {
 
 function _renderDashTempList() {
   const box = document.getElementById("dash-temp-list"); if (!box) return;
-  _setText("dash-temp-count", tempDb.length + "건");
-  if (tempDb.length === 0) { box.innerHTML = `<div class="dash-empty">체감기록이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-temp-all", "dash-chk-temp"); return; }
-  box.innerHTML = tempDb.map(r => {
+  
+  // 🌟 기간 검색 필터링 로직
+  const startDt = document.getElementById("dash-filter-temp-start") ? document.getElementById("dash-filter-temp-start").value : "";
+  const endDt = document.getElementById("dash-filter-temp-end") ? document.getElementById("dash-filter-temp-end").value : "";
+  
+  const filteredDb = tempDb.filter(r => {
+    if (startDt && (r.date || "") < startDt) return false;
+    if (endDt && (r.date || "") > endDt) return false;
+    return true;
+  });
+
+  _setText("dash-temp-count", filteredDb.length + "건");
+  if (filteredDb.length === 0) { box.innerHTML = `<div class="dash-empty">해당 기간에 기록이 없습니다.</div>`; _wireDashAllCheck("dash-chk-temp-all", "dash-chk-temp"); return; }
+  
+  box.innerHTML = filteredDb.map(r => {
     const slotKor = r.slot === "AM" ? "오전" : "오후";
     const dateShort = r.date.substring(5).replace("-", ".");
     const tempId = String(r.id);
@@ -1191,6 +1203,31 @@ function _buildTbmPrintAndPrint(ids) {
       </div>`;
   };
 
+function _renderDashTbmList() {
+  const box = document.getElementById("dash-tbm-list"); if (!box) return;
+  
+  // 🌟 기간 검색 필터링 로직
+  const startDt = document.getElementById("dash-filter-tbm-start") ? document.getElementById("dash-filter-tbm-start").value : "";
+  const endDt = document.getElementById("dash-filter-tbm-end") ? document.getElementById("dash-filter-tbm-end").value : "";
+  
+  const filteredDb = tbmDb.filter(r => {
+    if (startDt && (r.date || "") < startDt) return false;
+    if (endDt && (r.date || "") > endDt) return false;
+    return true;
+  });
+
+  _setText("dash-tbm-count", filteredDb.length + "건");
+  if (filteredDb.length === 0) { box.innerHTML = `<div class="dash-empty">해당 기간에 기록이 없습니다.</div>`; _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm"); return; }
+  
+  box.innerHTML = filteredDb.map(r => {
+    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length; const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
+    const badgeCls = riskHits >= 2 ? 'badge-danger' : riskHits >= 1 ? 'badge-warning' : pledgeMiss > 0 ? 'badge-attention' : 'badge-normal';
+    const badgeLbl = riskHits >= 1 ? `위험 ${riskHits}건` : pledgeMiss > 0 ? `미이행 ${pledgeMiss}건` : '정상';
+    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-tbm" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · TBM 자가진단</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${badgeLbl}</span><button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
+  }).join("");
+  _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
+}
+  
   const html = pages.map((pair, pi) => {
     const inner = pair.map(r => buildOne(r)).join('<div class="tbm-divider"></div>');
     return `<div class="tbm-page${pi === pages.length - 1 ? '' : ' page-break'}">${inner}</div>`;
@@ -1208,24 +1245,7 @@ function _buildTbmPrintAndPrint(ids) {
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TBM 출력</title><style>${style}</style></head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`); w.document.close();
 }
 
-function _renderDashTbmList() {
-  const box = document.getElementById("dash-tbm-list"); if (!box) return;
-  _setText("dash-tbm-count", tbmDb.length + "건");
-  if (tbmDb.length === 0) { box.innerHTML = `<div class="dash-empty">TBM 기록이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm"); return; }
-  
-  box.innerHTML = tbmDb.map(r => {
-    const riskHits = TBM_QUESTIONS.filter(q => q.riskOnYes && r[q.key] === "예").length; const pledgeMiss = TBM_QUESTIONS.filter(q => q.category === "pledge" && r[q.key] === "아니오").length;
-    const badgeCls = riskHits >= 2 ? 'badge-danger' : riskHits >= 1 ? 'badge-warning' : pledgeMiss > 0 ? 'badge-attention' : 'badge-normal';
-    const badgeLbl = riskHits >= 1 ? `위험 ${riskHits}건` : pledgeMiss > 0 ? `미이행 ${pledgeMiss}건` : '정상';
-    
-    // 🌟 부서명이 있을 경우 파란색 글씨로 뒤에 추가
-    const deptStr = r.dept ? ` <span style="color: #0ea5e9; font-weight: 600;">· ${r.dept}</span>` : "";
-    
-    return `<div class="dash-arc-item"><input type="checkbox" class="dash-chk-tbm" data-id="${r.id}"><div class="dash-arc-item-body"><div class="dash-arc-item-title">${r.date} · TBM 자가진단${deptStr}</div>${r.remarks ? `<div class="dash-arc-item-sub">${_dashTruncate(r.remarks, 28)}</div>` : ''}</div><div class="dash-arc-item-actions"><span class="badge ${badgeCls}">${badgeLbl}</span><button class="dash-arc-btn-print" onclick="printSingleTbm('${r.id}')"><i class="fa-solid fa-file-pdf"></i></button></div></div>`;
-  }).join("");
-  
-  _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
-}
+
 
 function dashDeleteSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("삭제할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); deleteSelectedTbm(); }
 function dashPrintSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("출력할 기록을 선택해주세요."); return; } printSelectedTbm.call(null, ids); document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); printSelectedTbm(); }
