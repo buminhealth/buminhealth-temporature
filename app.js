@@ -118,6 +118,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("search-temp-loc").addEventListener("change", renderArchive);
   document.getElementById("search-check-date-start").addEventListener("change", renderArchive);
   document.getElementById("search-check-date-end").addEventListener("change", renderArchive);
+
+  document.getElementById("dash-filter-temp-start")?.addEventListener("change", _renderDashTempList);
+  document.getElementById("dash-filter-temp-end")?.addEventListener("change", _renderDashTempList);
+  document.getElementById("dash-filter-tbm-start")?.addEventListener("change", _renderDashTbmList);
+  document.getElementById("dash-filter-tbm-end")?.addEventListener("change", _renderDashTbmList);
+  document.getElementById("dash-filter-check-start")?.addEventListener("change", _renderDashCheckList);
+  document.getElementById("dash-filter-check-end")?.addEventListener("change", _renderDashCheckList);
   
   document.getElementById("chk-temp-all").addEventListener("change", (e) => {
     document.querySelectorAll(".chk-temp-print").forEach(chk => chk.checked = e.target.checked);
@@ -993,9 +1000,22 @@ function _renderDashTempList() {
 
 function _renderDashCheckList() {
   const box = document.getElementById("dash-check-list"); if (!box) return;
-  _setText("dash-check-count", checklistDb.length + "건");
-  if (checklistDb.length === 0) { box.innerHTML = `<div class="dash-empty">자율점검 이력이 아직 없습니다.</div>`; _wireDashAllCheck("dash-chk-check-all", "dash-chk-check"); return; }
-  box.innerHTML = checklistDb.map(r => {
+  
+  // 기간 필터링 로직 추가
+  const startDt = document.getElementById("dash-filter-check-start")?.value || "";
+  const endDt = document.getElementById("dash-filter-check-end")?.value || "";
+  
+  const filteredDb = checklistDb.filter(r => {
+    if (startDt && (r.date || "") < startDt) return false;
+    if (endDt && (r.date || "") > endDt) return false;
+    return true;
+  });
+
+  _setText("dash-check-count", filteredDb.length + "건");
+  if (filteredDb.length === 0) { box.innerHTML = `<div class="dash-empty">선택한 기간에 자율점검 이력이 없습니다.</div>`; _wireDashAllCheck("dash-chk-check-all", "dash-chk-check"); return; }
+  
+  // checklistDb 대신 필터링된 filteredDb를 사용하여 리스트 생성
+  box.innerHTML = filteredDb.map(r => {
     const fields = ["water_supply","shade_cooling","shade_minimize","rest_facility","rest_31","rest_33","cooling_gear","emergency_unconscious","emergency_conscious","other_thermometer","other_education","other_record","other_sensitive"];
     const needCount = fields.filter(f => r[f] === "개선필요").length;
     const stateLabel = needCount === 0 ? `<span class="badge badge-normal">정상 (전 항목 적정)</span>` : `<span class="badge badge-warning">개선필요 ${needCount}건</span>`;
