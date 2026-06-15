@@ -1203,6 +1203,23 @@ function _buildTbmPrintAndPrint(ids) {
       </div>`;
   };
 
+  const html = pages.map((pair, pi) => {
+    const inner = pair.map(r => buildOne(r)).join('<div class="tbm-divider"></div>');
+    return `<div class="tbm-page${pi === pages.length - 1 ? '' : ' page-break'}">${inner}</div>`;
+  }).join("");
+
+  const style = `@page { size: A4 portrait; margin: 10mm 12mm; } * { box-sizing: border-box; } body { font-family: 'Pretendard', sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 10px; } .tbm-page { width: 100%; } .page-break { page-break-after: always; } .tbm-block { width: 100%; margin-bottom: 0; } .tbm-divider { height: 8px; border-top: 1.5px dashed #94a3b8; margin: 7px 0; } .tbm-title { text-align:center; font-size:14px; font-weight:800; margin:0 0 2px 0; } .tbm-sub { text-align:center; font-size:9px; color:#64748b; margin:0 0 6px 0; } table.tbm-meta { width:100%; border-collapse:collapse; margin-bottom:5px; font-size:10px; } table.tbm-meta td { border:1px solid #94a3b8; padding:5px 6px; } td.meta-hd { background:#e2e8f0; font-weight:700; text-align:center; white-space:nowrap; } table.tbm-body { width:100%; border-collapse:collapse; font-size:10px; } table.tbm-body th { background:#0891b2; color:#fff; padding:5px 4px; border:1px solid #94a3b8; text-align:center; } table.tbm-body td { border:1px solid #cbd5e1; vertical-align:middle; } table.tbm-body tbody tr td { height:22px; } .tbm-remarks { margin-top:5px; padding:5px 8px; border:1px dashed #cbd5e1; font-size:9.5px; }`;
+
+  const w = window.open("", "TBM_PRINT", "width=900,height=1200");
+  if (!w) {
+    const pa = document.getElementById("print-area");
+    pa.innerHTML = `<div style="font-family:'Pretendard',sans-serif;color:#0f172a;">${html}</div>`;
+    setTimeout(() => { window.print(); const cleanup = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", cleanup); }; window.addEventListener("afterprint", cleanup); }, 300);
+    return;
+  }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TBM 출력</title><style>${style}</style></head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`); w.document.close();
+}
+
 function _renderDashTbmList() {
   const box = document.getElementById("dash-tbm-list"); if (!box) return;
   
@@ -1227,25 +1244,6 @@ function _renderDashTbmList() {
   }).join("");
   _wireDashAllCheck("dash-chk-tbm-all", "dash-chk-tbm");
 }
-  
-  const html = pages.map((pair, pi) => {
-    const inner = pair.map(r => buildOne(r)).join('<div class="tbm-divider"></div>');
-    return `<div class="tbm-page${pi === pages.length - 1 ? '' : ' page-break'}">${inner}</div>`;
-  }).join("");
-
-  const style = `@page { size: A4 portrait; margin: 10mm 12mm; } * { box-sizing: border-box; } body { font-family: 'Pretendard', sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 10px; } .tbm-page { width: 100%; } .page-break { page-break-after: always; } .tbm-block { width: 100%; margin-bottom: 0; } .tbm-divider { height: 8px; border-top: 1.5px dashed #94a3b8; margin: 7px 0; } .tbm-title { text-align:center; font-size:14px; font-weight:800; margin:0 0 2px 0; } .tbm-sub { text-align:center; font-size:9px; color:#64748b; margin:0 0 6px 0; } table.tbm-meta { width:100%; border-collapse:collapse; margin-bottom:5px; font-size:10px; } table.tbm-meta td { border:1px solid #94a3b8; padding:5px 6px; } td.meta-hd { background:#e2e8f0; font-weight:700; text-align:center; white-space:nowrap; } table.tbm-body { width:100%; border-collapse:collapse; font-size:10px; } table.tbm-body th { background:#0891b2; color:#fff; padding:5px 4px; border:1px solid #94a3b8; text-align:center; } table.tbm-body td { border:1px solid #cbd5e1; vertical-align:middle; } table.tbm-body tbody tr td { height:22px; } .tbm-remarks { margin-top:5px; padding:5px 8px; border:1px dashed #cbd5e1; font-size:9.5px; }`;
-
-  const w = window.open("", "TBM_PRINT", "width=900,height=1200");
-  if (!w) {
-    const pa = document.getElementById("print-area");
-    pa.innerHTML = `<div style="font-family:'Pretendard',sans-serif;color:#0f172a;">${html}</div>`;
-    setTimeout(() => { window.print(); const cleanup = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", cleanup); }; window.addEventListener("afterprint", cleanup); }, 300);
-    return;
-  }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TBM 출력</title><style>${style}</style></head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`); w.document.close();
-}
-
-
 
 function dashDeleteSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("삭제할 기록을 선택해주세요."); return; } document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); deleteSelectedTbm(); }
 function dashPrintSelectedTbm() { const ids = Array.from(document.querySelectorAll(".dash-chk-tbm:checked")).map(c => c.getAttribute("data-id")); if (ids.length === 0) { alert("출력할 기록을 선택해주세요."); return; } printSelectedTbm.call(null, ids); document.querySelectorAll(".chk-tbm-print").forEach(c => { c.checked = ids.includes(c.getAttribute("data-id")); }); printSelectedTbm(); }
